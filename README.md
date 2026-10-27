@@ -1,3 +1,11 @@
+---
+type: Project overview
+title: ArgChart
+description: A terminal-first OpenCode plugin for exploring agent configuration as an interactive graph.
+tags: [opencode, plugin, terminal-ui, agent-configuration]
+status: draft
+---
+
 # ArgChart
 
 ArgChart is a terminal-first OpenCode plugin for exploring agent configuration as an interactive graph.

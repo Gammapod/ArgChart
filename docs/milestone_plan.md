@@ -1,3 +1,11 @@
+---
+type: Implementation roadmap
+title: ArgChart milestone plan
+description: Product decisions, graph semantics, and milestone sequence for ArgChart.
+tags: [roadmap, architecture, opencode, plugin]
+status: draft
+---
+
 # ArgChart Milestone Plan
 
 ## Product Decision Record
