@@ -61,5 +61,6 @@ In particular, a missing `solid-js` prevents the TUI plugin from loading.
 2. Start `opencode` in the repository root.
 3. Run `/plugins`; it should show local `argchart` and `argchart.tui` entries.
 4. Open the command palette and run **Open ArgChart**.
+5. Run **Refresh ArgChart agent inventory**. Its toast reports the current effective runtime agent count.
 
-The `ArgChart is loaded` toast verifies the CLI plugin. The actual graph view will be added in later milestones.
+The `ArgChart is loaded` toast verifies the CLI plugin. The inventory refresh verifies the server-to-TUI RPC path and the effective runtime agent inventory. The actual graph view will be added in later milestones.
