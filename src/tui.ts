@@ -1,5 +1,5 @@
 import { Plugin } from "@opencode/plugin/tui"
-import type { AgentInventory } from "./domain.js"
+import type { AgentInventory, CommunicationGraph } from "./domain.js"
 import { ArgChartRPC } from "./rpc.js"
 
 export default Plugin.define({
@@ -16,6 +16,23 @@ export default Plugin.define({
           group: "ArgChart",
           palette: true,
           run: () => context.ui.toast.show({ message: "ArgChart is loaded" }),
+        },
+        {
+          id: "argchart.refresh-graph",
+          title: "Refresh ArgChart communication graph",
+          group: "ArgChart",
+          palette: true,
+          run: async () => {
+            const result = (await inventory["graph.refresh"]({}, { location: context.location })) as CommunicationGraph
+            const decisions = result.edges.reduce(
+              (counts, edge) => ({ ...counts, [edge.decision]: counts[edge.decision] + 1 }),
+              { allow: 0, ask: 0, deny: 0 },
+            )
+            context.ui.toast.show({
+              message: `Communication graph: ${result.edges.length} edges (${decisions.allow} allow, ${decisions.ask} ask, ${decisions.deny} deny)`,
+              variant: "success",
+            })
+          },
         },
         {
           id: "argchart.refresh-inventory",
