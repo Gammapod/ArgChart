@@ -231,6 +231,33 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 **References:** [Plugin RPC client](https://opencode.ai/v2/docs/build/client/#plugin-rpc), [HTTP API](https://opencode.ai/v2/docs/api), [CLI plugin API](https://opencode.ai/v2/docs/build/plugins/cli/).
 
+### M9: Runtime Session Activity Overlay (Deferred)
+
+**Outcome:** an optional, read-only runtime overlay that shows actual child-session activity on top of the static communication graph.
+
+**Work:**
+
+- Derive agent activity from running and active sessions; agents are configuration definitions, so an agent's runtime state is an aggregate of its sessions rather than a single process state.
+- Project session hierarchy through `SessionInfo.id`, `parentID`, and `agent` to identify child sessions associated with an agent-to-agent communication relationship.
+- Subscribe to session and permission events to represent a delegation lifecycle: created/pending, active, awaiting approval, succeeded, failed, or interrupted.
+- Record the parent and child agent identities when a child session is created. Do not infer the historical parent agent later if the parent session may have switched agents.
+- Distinguish ordinary child-session delegation from forks or other hierarchy mechanisms when the runtime event/session data provides that distinction.
+- Attach active-session counts, latest outcome, timestamps, pending approval state, and selected session IDs as a runtime overlay; keep configured effective permission potential separate from observed activity.
+- Decide whether to persist a compact normalized event history through plugin storage. Live subscriptions alone cannot provide an ArgChart timeline for periods when the plugin was not observing.
+
+**Acceptance criteria:** a user can select a configured graph edge and see its current child-session activity plus its latest observed outcome without confusing this data with the edge's configured permission decision.
+
+**Caveats:**
+
+- A configured edge means a launch may be attempted; it does not guarantee a session launch or successful execution.
+- Parent-child session hierarchy is strong evidence of a relationship, but not every child hierarchy is necessarily a normal subagent delegation.
+- Session policies, approvals, depth limits, agent switching, and server availability can affect actual outcomes beyond the static graph.
+- Historical event completeness requires durable event capture or a supported session-log recovery path; the session-log API is experimental.
+
+**Reasoning:** session and event APIs can provide real-time operational context without changing ArgChart's static-analysis contract. Keeping activity as a separate overlay prevents a transient failed or active run from being mistaken for a configuration permission result.
+
+**References:** [Plugin event API](https://opencode.ai/v2/docs/build/plugins/), [CLI event data](https://opencode.ai/v2/docs/build/plugins/cli/#events), [Session API](https://opencode.ai/v2/docs/api#session), [event stream API](https://opencode.ai/v2/docs/api#event), [permission API](https://opencode.ai/v2/docs/api#permission).
+
 ## Implementation Principles
 
 - Prefer OpenCode runtime APIs for effective behavior; do not reimplement permission semantics if an OpenCode evaluation API is available.
