@@ -72,6 +72,8 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 ## Milestones
 
+**Status at the M3 checkpoint:** M0 through M3 are complete and manually smoke-tested. M4 has not started.
+
 ### M0: Plugin Skeleton and Research Contract
 
 **Outcome:** a loadable local V2 plugin package with separate server and CLI entry points, plus type-checking and a documented OpenCode version target.

@@ -1,0 +1,43 @@
+%% ArgChart effective runtime communication graph
+%% Generated: 2026-10-27T03:32:48.963Z
+flowchart TD
+  n0["User"]
+  n1["Build"]
+  n2["Plan"]
+  n3["Test-agent"]
+  n4["content-editor"]
+  n5["core-owner"]
+  n6["frontend-owner"]
+  n0 -->|allow| n1
+  n0 -->|allow| n2
+  n0 -->|allow| n3
+  n0 -->|allow| n4
+  n0 -->|allow| n5
+  n0 -->|allow| n6
+  n1 -->|allow| n3
+  n1 -->|allow| n4
+  n1 -->|allow| n5
+  n1 -->|allow| n6
+  n2 -->|allow| n3
+  n2 -->|allow| n4
+  n2 -->|allow| n5
+  n2 -->|allow| n6
+  n3 -.->|ask| n3
+  n3 -.->|ask| n4
+  n3 -.->|ask| n5
+  n3 -.->|ask| n6
+  n4 -->|allow| n3
+  n4 -->|allow| n4
+  n4 -->|allow| n5
+  n4 -->|allow| n6
+  n5 -->|allow| n3
+  n5 -->|allow| n4
+  n5 -->|allow| n5
+  n5 -->|allow| n6
+  n6 -->|allow| n3
+  n6 -->|allow| n4
+  n6 -->|allow| n5
+  n6 -->|allow| n6
+  class n0 user
+  classDef user fill:#2563eb,color:#ffffff,stroke:#1d4ed8
+  %% Solid edges allow; dashed edges ask or deny. Edge labels preserve the decision.

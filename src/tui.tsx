@@ -2,11 +2,14 @@ import { Plugin } from "@opencode/plugin/tui"
 import type { AgentInventory, CommunicationGraph } from "./domain.js"
 import { ArgChartRPC } from "./rpc.js"
 import { ArgChartViewer } from "./viewer.js"
+import { defaultTopologyFilters } from "./topology.js"
 
 export default Plugin.define({
   id: "argchart.tui",
   setup(context) {
     const inventory = context.client.rpc(ArgChartRPC)
+    const [topologyFilters, updateTopologyFilters] = context.storage.memory("topology-filters", { initial: defaultTopologyFilters })
+    const [, updateViewerOptions] = context.storage.memory("viewer-options", { initial: { showDetails: true } })
     const unregisterRoute = context.ui.router.register({
       name: "argchart",
       render: () => <ArgChartViewer />,
@@ -38,6 +41,44 @@ export default Plugin.define({
               variant: "success",
             })
           },
+        },
+        {
+          id: "argchart.export-mermaid",
+          title: "Export ArgChart Mermaid graph",
+          group: "ArgChart",
+          palette: true,
+          run: async () => {
+            const result = (await inventory["graph.export-mermaid"]({ ...topologyFilters }, { location: context.location })) as { outputPath: string }
+            context.ui.toast.show({ message: `Mermaid graph exported to ${result.outputPath}`, variant: "success" })
+          },
+        },
+        {
+          id: "argchart.toggle-subagents",
+          title: "Toggle ArgChart subagent nodes",
+          group: "ArgChart filters",
+          palette: true,
+          run: () => updateTopologyFilters((filters) => { filters.showSubagents = !filters.showSubagents }),
+        },
+        {
+          id: "argchart.toggle-ask-edges",
+          title: "Toggle ArgChart ask edges",
+          group: "ArgChart filters",
+          palette: true,
+          run: () => updateTopologyFilters((filters) => { filters.showAskEdges = !filters.showAskEdges }),
+        },
+        {
+          id: "argchart.toggle-deny-edges",
+          title: "Toggle ArgChart denied edges",
+          group: "ArgChart filters",
+          palette: true,
+          run: () => updateTopologyFilters((filters) => { filters.showDenyEdges = !filters.showDenyEdges }),
+        },
+        {
+          id: "argchart.toggle-details",
+          title: "Toggle ArgChart details panel",
+          group: "ArgChart",
+          palette: true,
+          run: () => updateViewerOptions((options) => { options.showDetails = !options.showDetails }),
         },
         {
           id: "argchart.refresh-inventory",

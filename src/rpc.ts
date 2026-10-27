@@ -112,6 +112,23 @@ export const ArgChartRPC = Rpc.define({
       input: { type: "object", properties: {}, additionalProperties: false },
       output: graphSchema,
     },
+    "graph.export-mermaid": {
+      input: {
+        type: "object",
+        properties: {
+          showSubagents: { type: "boolean" },
+          showAskEdges: { type: "boolean" },
+          showDenyEdges: { type: "boolean" },
+        },
+        additionalProperties: false,
+      },
+      output: {
+        type: "object",
+        properties: { outputPath: { type: "string" } },
+        required: ["outputPath"],
+        additionalProperties: false,
+      },
+    },
   },
   events: {},
 })

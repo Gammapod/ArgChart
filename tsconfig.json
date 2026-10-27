@@ -5,6 +5,7 @@
     "target": "ES2022",
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { analyzeCommunicationGraph, evaluateSubagentPermission } from "../src/graph.ts"
+import { USER_NODE_ID, buildCommunicationTopology, defaultTopologyFilters, filterTopology, layoutLocalTopology, visibleTopologyEdges } from "../src/topology.ts"
+import { toMermaid } from "../src/mermaid.ts"
 import type { AgentInventory, GraphNode, PermissionRule } from "../src/domain.ts"
 
 const node = (id: string, mode: GraphNode["mode"], permissions: readonly PermissionRule[] = []): GraphNode => ({
@@ -78,4 +80,98 @@ test("a matching wildcard is identified and an unmatched permission defaults to 
 
   assert.equal(wildcard.decision, "allow")
   assert.equal(unmatched.decision, "ask")
+})
+
+test("topology adds User edges for primary and all agents but keeps subagents agent-only", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [node("primary", "primary"), node("all", "all"), node("subagent", "subagent")],
+  })
+  const topology = buildCommunicationTopology(graph)
+
+  assert.deepEqual(
+    topology.edges.filter((edge) => edge.kind === "user-selection"),
+    [
+      { source: USER_NODE_ID, target: "primary", decision: "allow", kind: "user-selection" },
+      { source: USER_NODE_ID, target: "all", decision: "allow", kind: "user-selection" },
+    ],
+  )
+  assert.equal(topology.edges.some((edge) => edge.source === USER_NODE_ID && edge.target === "subagent"), false)
+})
+
+test("localized topology retains allow and ask edges while hiding denied edges", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [
+      node("parent", "primary", [
+        { action: "subagent", resource: "allowed", effect: "allow" },
+        { action: "subagent", resource: "denied", effect: "deny" },
+      ]),
+      node("allowed", "subagent"),
+      node("asked", "subagent"),
+      node("denied", "subagent"),
+    ],
+  })
+
+  const visible = visibleTopologyEdges(buildCommunicationTopology(graph), "parent")
+
+  assert.deepEqual(visible.map((edge) => `${edge.source}:${edge.target}:${edge.decision}`), [
+    "argchart:user:parent:allow",
+    "parent:allowed:allow",
+    "parent:asked:ask",
+  ])
+})
+
+test("topology filters hide subagents and denied edges by default while retaining ask edges", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [node("primary", "primary"), node("subagent", "subagent")],
+  })
+  const filtered = filterTopology(buildCommunicationTopology(graph), defaultTopologyFilters)
+
+  assert.deepEqual(filtered.nodes.map((node) => node.id), [USER_NODE_ID, "primary"])
+  assert.equal(filtered.edges.some((edge) => edge.decision === "deny"), false)
+  assert.equal(filtered.edges.some((edge) => edge.decision === "ask"), false)
+})
+
+test("localized layout assigns every neighbor once and keeps two-way agents in the outbound column", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [
+      node("selected", "all", [
+        { action: "subagent", resource: "inbound", effect: "deny" },
+        { action: "subagent", resource: "outbound", effect: "allow" },
+        { action: "subagent", resource: "two-way", effect: "ask" },
+      ]),
+      node("inbound", "all", [{ action: "subagent", resource: "selected", effect: "allow" }]),
+      node("outbound", "subagent"),
+      node("two-way", "all", [{ action: "subagent", resource: "selected", effect: "allow" }]),
+    ],
+  })
+  const layout = layoutLocalTopology(filterTopology(buildCommunicationTopology(graph), { showSubagents: true, showAskEdges: true, showDenyEdges: false }), "selected")
+
+  assert.deepEqual(layout.inbound.map((neighbor) => neighbor.node.id), [USER_NODE_ID, "inbound"])
+  assert.deepEqual(layout.outbound.map((neighbor) => neighbor.node.id), ["outbound", "two-way"])
+  assert.equal(layout.outbound.find((neighbor) => neighbor.node.id === "two-way")?.inbound?.decision, "allow")
+  assert.equal(layout.outbound.find((neighbor) => neighbor.node.id === "two-way")?.outbound?.decision, "ask")
+})
+
+test("Mermaid export includes the User node and preserves edge decisions", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [
+      node("primary", "primary", [{ action: "subagent", resource: "child", effect: "ask" }]),
+      node("child", "subagent"),
+    ],
+  }, "2026-10-27T00:00:00.000Z")
+  const output = toMermaid(graph, { showSubagents: true, showAskEdges: true, showDenyEdges: true })
+
+  assert.match(output, /\["User"\]/)
+  assert.match(output, /\|allow\|/)
+  assert.match(output, /\|ask\|/)
 })
