@@ -1,11 +1,16 @@
 import { Plugin } from "@opencode/plugin/tui"
 import type { AgentInventory, CommunicationGraph } from "./domain.js"
 import { ArgChartRPC } from "./rpc.js"
+import { ArgChartViewer } from "./viewer.js"
 
 export default Plugin.define({
   id: "argchart.tui",
   setup(context) {
     const inventory = context.client.rpc(ArgChartRPC)
+    const unregisterRoute = context.ui.router.register({
+      name: "argchart",
+      render: () => <ArgChartViewer />,
+    })
 
     context.keymap.layer(() => ({
       mode: "global",
@@ -15,7 +20,7 @@ export default Plugin.define({
           title: "Open ArgChart",
           group: "ArgChart",
           palette: true,
-          run: () => context.ui.toast.show({ message: "ArgChart is loaded" }),
+          run: () => context.ui.router.navigate({ type: "plugin", name: "argchart" }),
         },
         {
           id: "argchart.refresh-graph",
@@ -49,5 +54,7 @@ export default Plugin.define({
         },
       ],
     }))
+
+    return unregisterRoute
   },
 })

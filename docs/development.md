@@ -60,8 +60,10 @@ In particular, a missing `solid-js` prevents the TUI plugin from loading.
 1. Run `npm run typecheck`.
 2. Start `opencode` in the repository root.
 3. Run `/plugins`; it should show local `argchart` and `argchart.tui` entries.
-4. Open the command palette and run **Open ArgChart**.
+4. Open the command palette and run **Open ArgChart**. The dedicated viewer opens with an agent list, directed relationships, and explanation panel.
 5. Run **Refresh ArgChart agent inventory**. Its toast reports the current effective runtime agent count.
 6. Run **Refresh ArgChart communication graph**. Its toast reports the effective edge count and `allow`/`ask`/`deny` breakdown.
 
-The `ArgChart is loaded` toast verifies the CLI plugin. The refresh commands verify the server-to-TUI RPC path, effective runtime inventory, and read-only communication analysis. The actual graph view will be added in later milestones.
+In the ArgChart viewer, use `j` and `k` to select agents and `r` to refresh the graph. The relationships and details panels update for the selected agent.
+
+The viewer and refresh commands verify the server-to-TUI RPC path, effective runtime inventory, and read-only communication analysis.
