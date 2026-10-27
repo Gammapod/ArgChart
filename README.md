@@ -19,7 +19,7 @@ The current read-only product inventories the agents resolved for an OpenCode lo
 - Preserve and explain `allow`, `ask`, and `deny` decisions using OpenCode's ordered, last-match-wins permission semantics.
 - Refresh the inventory and graph in the terminal viewer.
 - Inspect a selected agent's concise local topology, including virtual User selection edges.
-- Export a full Mermaid snapshot as `argchart.mmd`.
+- Export a filtered Mermaid snapshot as `argchart.mmd`, with overwrite confirmation.
 
 ArgChart does **not** yet parse or attribute Markdown, JSON, or JSONC source files; source inspection and safe editing remain future milestones.
 
@@ -42,4 +42,4 @@ ArgChart does **not** yet parse or attribute Markdown, JSON, or JSONC source fil
 
 The terminal interface is the primary product. A future browser viewer, if needed, should share the same graph model, state semantics, and interaction design while using a browser-specific renderer.
 
-See [docs/milestone_plan.md](docs/milestone_plan.md) for the implementation roadmap and [docs/architecture.md](docs/architecture.md) for the M1–M3 decision record.
+See [docs/milestone_plan.md](docs/milestone_plan.md) for the implementation roadmap, [docs/architecture.md](docs/architecture.md) for the decision record, [docs/setup.md](docs/setup.md) for local setup, and [docs/invariants.md](docs/invariants.md) for test traceability.

@@ -12,7 +12,12 @@ export default Plugin.define({
     await ctx.rpc.register(ArgChartRPC, {
       "inventory.refresh": () => inventory.refresh(),
       "graph.refresh": async () => analyzeCommunicationGraph(await inventory.refresh()),
-      "graph.export-mermaid": async (filters) => exportMermaidGraph(await inventory.refresh(), ctx.location.directory, normalizeTopologyFilters(filters)),
+      "graph.export-mermaid": async (input) => exportMermaidGraph(
+        await inventory.refresh(),
+        ctx.location.directory,
+        normalizeTopologyFilters(input),
+        Boolean((input as { overwrite?: unknown }).overwrite),
+      ),
     })
   },
 })
@@ -22,7 +27,6 @@ export type {
   AgentInventory,
   AgentMode,
   AgentModel,
-  AgentRuntimeData,
   EdgeDecision,
   EdgeExplanation,
   GraphConstraint,

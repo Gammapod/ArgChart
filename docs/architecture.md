@@ -1,12 +1,12 @@
 ---
 type: Architecture decision record
-title: ArgChart architecture through M3
-description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime graph and terminal viewer.
+title: ArgChart architecture through M3.5
+description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime graph, terminal viewer, and M3.5 cleanup.
 tags: [architecture, decisions, opencode, permissions, terminal-ui]
 status: active
 ---
 
-# ArgChart architecture through M3
+# ArgChart architecture through M3.5
 
 ## Current capability boundary
 
@@ -18,9 +18,27 @@ It does not yet inspect or attribute a configuration source file. A custom Markd
 
 ### Use the effective runtime registry as the graph authority
 
-`ctx.agent.list()` supplies resolved built-in and custom agents after OpenCode configuration merging. ArgChart normalizes this response into `GraphNode` values while retaining a JSON-safe raw snapshot for diagnostics. This is the authority for M1–M3 because one source file cannot represent built-ins, inherited settings, or merged configuration layers reliably.
+`ctx.agent.list()` supplies resolved built-in and custom agents after OpenCode configuration merging. ArgChart normalizes this response into the graph fields needed for analysis and rendering. This is the authority for M1–M3 because one source file cannot represent built-ins, inherited settings, or merged configuration layers reliably.
 
 **Consequence:** every displayed result is labeled `effective-runtime`; source provenance and editable configuration remain later work.
+
+### Analyze effective rules prospectively, without invoking permissions
+
+OpenCode resolves the agent registry and ordered agent permission rules before ArgChart receives them. ArgChart then applies OpenCode's documented wildcard, last-match-wins, and default-`ask` semantics to those resolved rules for each hypothetical source-target pair. It does not call `ctx.permission.assert()`: that API is session-bound and may prompt or reject rather than answer a read-only hypothetical query.
+
+**Consequence:** an edge describes configured effective permission potential, not the final outcome of a particular launch. Session approvals, policies, depth, and runtime state remain external constraints.
+
+### Keep selection state independent from rendering
+
+The terminal viewer stores a selection state with an optional focused agent, a selected-agent collection, and an optional focused relationship. The current viewer initializes focus to the first available agent for convenience, but the state model permits no selection and future multi-selection.
+
+**Consequence:** M4 actions, session navigation, and future graph renderers can act on selection without assuming a single list-controlled agent.
+
+### Limit graph-node data to rendering and analysis needs
+
+Graph nodes retain normalized identity, presentation, mode, model, hidden state, and effective permission rules. They no longer carry an unrestricted raw runtime snapshot through graph RPC responses.
+
+**Consequence:** the normal UI avoids exposing system instructions or unrelated provider/runtime fields. Targeted diagnostics can be designed explicitly if later needed.
 
 ### Keep analysis on the server and rendering in the CLI plugin
 
@@ -62,7 +80,7 @@ The selected-agent topology panel renders directly connected `allow` edges as so
 
 ### Export complete topology as Mermaid
 
-The **Export ArgChart Mermaid graph** command writes `argchart.mmd` in the active project directory. It includes the virtual User node and all communication edges, including denied edges; labels preserve `allow`, `ask`, and `deny`, while solid versus dashed syntax distinguishes allowed from non-allowed relationships.
+The **Export ArgChart Mermaid graph** command writes `argchart.mmd` in the active project directory. It includes the virtual User node and all communication edges allowed by the active filters; labels preserve `allow`, `ask`, and `deny`, while solid versus dashed syntax distinguishes allowed from non-allowed relationships. An existing export is never overwritten until the user confirms it in the terminal.
 
 **Consequence:** export is an explicit user action and a snapshot, not a live-synchronized artifact.
 
@@ -85,7 +103,7 @@ Manual checks through M3 confirmed that the viewer:
 - lists OpenCode built-in agents and a custom Markdown-defined test agent in the effective runtime inventory;
 - updates inventory and communication-edge counts after an agent is added or removed;
 - shows allowed and denied subagent relationships and their final matching effective rules;
-- exposes each normalized agent's effective permission rules in the raw diagnostic payload, though file-permission visualization is not a supported M3 view.
+- retains each normalized agent's effective permission rules for analysis, though file-permission visualization is not a supported M3 view.
 
 ## Deferred questions
 

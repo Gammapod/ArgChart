@@ -30,9 +30,8 @@ const nodeSchema = {
     },
     hidden: { type: "boolean" },
     permissions: { type: "array", items: permissionRuleSchema },
-    raw: { type: "object", additionalProperties: true },
   },
-  required: ["id", "name", "mode", "hidden", "permissions", "raw"],
+  required: ["id", "name", "mode", "hidden", "permissions"],
   additionalProperties: false,
 } as const
 
@@ -119,13 +118,14 @@ export const ArgChartRPC = Rpc.define({
           showSubagents: { type: "boolean" },
           showAskEdges: { type: "boolean" },
           showDenyEdges: { type: "boolean" },
+          overwrite: { type: "boolean" },
         },
         additionalProperties: false,
       },
       output: {
         type: "object",
-        properties: { outputPath: { type: "string" } },
-        required: ["outputPath"],
+        properties: { outputPath: { type: "string" }, status: { enum: ["written", "exists"] } },
+        required: ["outputPath", "status"],
         additionalProperties: false,
       },
     },

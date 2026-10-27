@@ -79,12 +79,6 @@ export function filterTopology(topology: CommunicationTopology, filters: Topolog
   }
 }
 
-export function visibleTopologyEdges(topology: CommunicationTopology, selectedID: string): readonly TopologyEdge[] {
-  return topology.edges.filter((edge) =>
-    (edge.source === selectedID || edge.target === selectedID) && edge.decision !== "deny",
-  )
-}
-
 export function layoutLocalTopology(topology: CommunicationTopology, selectedID: string): LocalTopologyLayout {
   const neighbors = new Map<string, LocalTopologyNeighbor>()
   const node = (id: string) => topology.nodes.find((candidate) => candidate.id === id)

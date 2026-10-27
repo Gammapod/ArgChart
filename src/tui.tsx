@@ -48,7 +48,16 @@ export default Plugin.define({
           group: "ArgChart",
           palette: true,
           run: async () => {
-            const result = (await inventory["graph.export-mermaid"]({ ...topologyFilters }, { location: context.location })) as { outputPath: string }
+            let result = (await inventory["graph.export-mermaid"]({ ...topologyFilters }, { location: context.location })) as { outputPath: string; status: "written" | "exists" }
+            if (result.status === "exists") {
+              const confirmed = await context.ui.dialog.confirm({
+                title: "Overwrite ArgChart Mermaid export?",
+                message: `${result.outputPath} already exists. Replace it with the current filtered graph?`,
+                label: { confirm: "Overwrite", cancel: "Cancel" },
+              })
+              if (!confirmed) return
+              result = (await inventory["graph.export-mermaid"]({ ...topologyFilters, overwrite: true }, { location: context.location })) as typeof result
+            }
             context.ui.toast.show({ message: `Mermaid graph exported to ${result.outputPath}`, variant: "success" })
           },
         },

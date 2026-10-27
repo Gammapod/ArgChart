@@ -16,8 +16,6 @@ export interface AgentModel {
   variant?: string
 }
 
-export type AgentRuntimeData = Readonly<Record<string, unknown>>
-
 export interface GraphNode {
   id: AgentID
   name: string
@@ -26,7 +24,6 @@ export interface GraphNode {
   model?: AgentModel
   hidden: boolean
   permissions: readonly PermissionRule[]
-  raw: AgentRuntimeData
 }
 
 export interface GraphEdge {

@@ -1,12 +1,16 @@
 import type { AgentInfo, AgentListOutput } from "@opencode/client"
-import type { AgentInventory, AgentModel, AgentRuntimeData, GraphNode, PermissionRule } from "./domain.js"
+import type { AgentInventory, AgentModel, GraphNode, PermissionRule } from "./domain.js"
 
 export interface AgentRegistry {
   list(): Promise<AgentListOutput>
 }
 
 export class AgentInventoryService {
-  constructor(private readonly agents: AgentRegistry) {}
+  private readonly agents: AgentRegistry
+
+  constructor(agents: AgentRegistry) {
+    this.agents = agents
+  }
 
   async refresh(): Promise<AgentInventory> {
     const response = await this.agents.list()
@@ -19,7 +23,7 @@ export class AgentInventoryService {
   }
 }
 
-function normalizeAgent(agent: AgentInfo): GraphNode {
+export function normalizeAgent(agent: AgentInfo): GraphNode {
   const model = normalizeModel(agent.model)
 
   return {
@@ -28,7 +32,6 @@ function normalizeAgent(agent: AgentInfo): GraphNode {
     mode: agent.mode,
     hidden: agent.hidden,
     permissions: agent.permissions.map(normalizePermissionRule),
-    raw: JSON.parse(JSON.stringify(agent)) as AgentRuntimeData,
     ...(agent.description === undefined ? {} : { description: agent.description }),
     ...(model === undefined ? {} : { model }),
   }

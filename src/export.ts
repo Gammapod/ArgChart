@@ -1,14 +1,34 @@
 import { join } from "node:path"
-import { writeFile } from "node:fs/promises"
+import { access, writeFile } from "node:fs/promises"
 import type { AgentInventory } from "./domain.js"
-import { analyzeCommunicationGraph } from "./graph.js"
-import { toMermaid } from "./mermaid.js"
-import { defaultTopologyFilters, type TopologyFilters } from "./topology.js"
+import { analyzeCommunicationGraph } from "./graph.ts"
+import { toMermaid } from "./mermaid.ts"
+import { defaultTopologyFilters, type TopologyFilters } from "./topology.ts"
 
-export async function exportMermaidGraph(inventory: AgentInventory, directory: string, filters?: TopologyFilters): Promise<{ outputPath: string }> {
+export interface MermaidExportResult {
+  outputPath: string
+  status: "written" | "exists"
+}
+
+export async function exportMermaidGraph(
+  inventory: AgentInventory,
+  directory: string,
+  filters?: TopologyFilters,
+  overwrite = false,
+): Promise<MermaidExportResult> {
   const outputPath = join(directory, "argchart.mmd")
+  if (!overwrite && await fileExists(outputPath)) return { outputPath, status: "exists" }
   await writeFile(outputPath, toMermaid(analyzeCommunicationGraph(inventory), filters), "utf8")
-  return { outputPath }
+  return { outputPath, status: "written" }
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function normalizeTopologyFilters(value: unknown): TopologyFilters {

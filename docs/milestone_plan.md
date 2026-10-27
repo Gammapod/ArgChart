@@ -72,7 +72,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 ## Milestones
 
-**Status at the M3 checkpoint:** M0 through M3 are complete and manually smoke-tested. M4 has not started.
+**Status at the M3.5 checkpoint:** M0 through M3, plus M3.5 architecture/test cleanup, are complete and manually smoke-tested. M4 has not started.
 
 ### M0: Plugin Skeleton and Research Contract
 
@@ -97,7 +97,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 **Work:**
 
 - Read agents through `ctx.agent.list()` and individual agents through `ctx.agent.get()` when necessary.
-- Normalize runtime data into an ArgChart graph-node model without losing raw data needed for diagnostics.
+- Normalize runtime data into an ArgChart graph-node model with only the fields required for analysis and rendering; add targeted diagnostics deliberately rather than exposing unrestricted runtime payloads.
 - Subscribe to relevant location/configuration events or expose an explicit refresh path.
 - Clearly label this data as the effective runtime view, not the contents of a specific configuration file.
 
