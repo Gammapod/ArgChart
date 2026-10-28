@@ -1,13 +1,13 @@
 import { usePlugin } from "@opencode/plugin/tui"
-import { Show, createMemo, createSignal, onMount } from "solid-js"
-import type { CommunicationGraph } from "./domain.js"
+import { Show, createEffect, createMemo, createSignal, onMount } from "solid-js"
+import type { CommunicationGraph, FileScopeDirectory, FileScopeEntry } from "./domain.js"
 import { ArgChartRPC } from "./rpc.js"
 import { buildCommunicationTopology, defaultTopologyFilters, filterTopology, layoutLocalTopology } from "./topology.js"
 import { AgentNavigator } from "./tui/agent-navigator.js"
 import { DetailsPanel } from "./tui/details-panel.js"
-import { RelationshipPanel } from "./tui/relationship-panel.js"
 import { emptySelection, focusAgent, moveFocusedAgent, reconcileSelection } from "./tui/selection.js"
 import { TopologyPanel } from "./tui/topology-panel.js"
+import { FileScopePanel } from "./tui/file-scope-panel.js"
 
 export function ArgChartViewer() {
   const context = usePlugin()
@@ -15,6 +15,7 @@ export function ArgChartViewer() {
   const [graph, setGraph] = createSignal<CommunicationGraph>()
   const [selection, updateSelection] = context.storage.memory("selection", { initial: emptySelection })
   const [error, setError] = createSignal<string>()
+  const [fileScope, setFileScope] = createSignal<FileScopeDirectory>()
   const [filters, updateFilters] = context.storage.memory("topology-filters", { initial: defaultTopologyFilters })
   const [viewerOptions, updateViewerOptions] = context.storage.memory("viewer-options", { initial: { showDetails: true } })
 
@@ -25,6 +26,27 @@ export function ArgChartViewer() {
   })
   const topology = createMemo(() => graph() ? filterTopology(buildCommunicationTopology(graph()!), filters) : undefined)
   const localTopology = createMemo(() => selected() && topology() ? layoutLocalTopology(topology()!, selected()!.id) : undefined)
+  const visibleFileEntries = createMemo(() => {
+    const scope = fileScope()
+    if (!scope) return [] as readonly FileScopeEntry[]
+    return scope.entries.filter((entry) => entry.read.decision !== "deny" || entry.edit.decision !== "deny")
+  })
+  let scopedAgentID: string | undefined
+
+  createEffect(() => {
+    const agent = selected()
+    if (!agent) return setFileScope(undefined)
+    const agentChanged = scopedAgentID !== agent.id
+    if (agentChanged) {
+      scopedAgentID = agent.id
+    }
+    void client["file-scope.list"]({ agentID: agent.id, path: "" }, { location: context.location })
+      .then((scope) => {
+        if (selected()?.id !== agent.id) return
+        setFileScope(scope as FileScopeDirectory)
+      })
+      .catch((cause) => setError(cause instanceof Error ? cause.message : "Unable to load file scope."))
+  })
 
   const refresh = async () => {
     try {
@@ -72,18 +94,18 @@ export function ArgChartViewer() {
   onMount(refresh)
 
   return (
-    <box flexDirection="column" padding={1} gap={1}>
+    <box flexDirection="column" height="100%" padding={1} gap={1}>
       <box justifyContent="space-between">
         <text fg={context.theme.text.base}>ArgChart · effective runtime communication graph</text>
-        <text fg={context.theme.text.muted}>j/k select · r refresh · s/a/d filters · i details</text>
+        <text fg={context.theme.text.muted}>j/k agents · i details</text>
       </box>
       <Show when={error()}>{(message) => <text fg={context.theme.text.feedback.error.base}>{message()}</text>}</Show>
       <Show when={graph()} fallback={<text fg={context.theme.text.muted}>Loading graph…</text>}>
         {(currentGraph) => <>
-          <box flexDirection="row" gap={2} flexGrow={1}>
+          <box flexDirection="row" gap={2} height="25%" flexShrink={0}>
             <AgentNavigator graph={currentGraph()} focusedAgentID={selection.focusedAgentID} />
-            <Show when={selected()} fallback={<text fg={context.theme.text.muted}>Select an agent to inspect its relationships.</text>}>
-              {(node) => <RelationshipPanel selected={node()} relationships={relationships()} />}
+            <Show when={fileScope()} fallback={<text fg={context.theme.text.muted}>Select an agent to inspect its file scope.</text>}>
+              {(scope) => <FileScopePanel scope={scope()} entries={visibleFileEntries()} />}
             </Show>
           </box>
           <Show when={viewerOptions.showDetails}>
@@ -92,9 +114,9 @@ export function ArgChartViewer() {
             </Show>
           </Show>
           <Show when={selected()}>
-            {(node) => <Show when={localTopology()}>
+            {(node) => <box flexGrow={1} overflow="hidden"><Show when={localTopology()}>
               {(layout) => <TopologyPanel selected={node()} layout={layout()} filters={filters} />}
-            </Show>}
+            </Show></box>}
           </Show>
         </>}
       </Show>

@@ -45,6 +45,40 @@ export interface MatchedPermissionRule extends PermissionRule {
   index: number
 }
 
+export interface PermissionRequest {
+  action: string
+  resource: string
+}
+
+/** A prospective decision over the runtime-resolved ordered rule set. */
+export interface PermissionDecision {
+  action: string
+  resource: string
+  decision: EdgeDecision
+  matchingRule?: MatchedPermissionRule
+  matchingRules: readonly MatchedPermissionRule[]
+  summary: string
+}
+
+export type FileScopeEntryKind = "file" | "directory" | "pattern"
+
+export interface FileScopeEntry {
+  path: string
+  name: string
+  depth: number
+  kind: FileScopeEntryKind
+  exists: boolean
+  read: PermissionDecision
+  edit: PermissionDecision
+}
+
+export interface FileScopeDirectory {
+  view: "effective-runtime"
+  agentID: AgentID
+  path: string
+  entries: readonly FileScopeEntry[]
+}
+
 export interface GraphConstraint {
   type: "target-mode" | "runtime-depth"
   summary: string

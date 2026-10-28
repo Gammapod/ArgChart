@@ -12,27 +12,22 @@ status: draft
 
 ArgChart will be an OpenCode V2 plugin with a terminal-first interactive UI. Its first deliverable is a read-only graph of which agents can launch which subagents.
 
-The graph must distinguish two views:
+ArgChart distinguishes three complementary views:
 
 - **Effective runtime view:** the resolved agent registry and effective permissions used by OpenCode now.
-- **Source view:** the Markdown or JSONC definitions that supplied instructions and configuration. This is required for safe future editing, but it is not the authority for merged runtime behavior.
+- **Capability scope view:** read-only projections of the consequences of those effective permissions: delegation authority, file access, and non-file tools.
+- **Source view:** the Markdown or JSONC definitions that supplied instructions and configuration. It is a deferred convenience/provenance view, not the authority for merged runtime behavior.
 
 Do not infer runtime behavior from one source file alone. OpenCode merges configuration from multiple scopes, applies built-in defaults, and appends ordered permission rules. The last matching rule wins.
 
-## Supported Scope
+## Product Priorities
 
-Initial source support, in priority order:
+ArgChart prioritizes visualization of configuration consequences over configuration manipulation. The next product sequence is capability-scope foundation, file scope, tool scope, companion web visualization, then runtime activity. Configuration editing is deliberately deferred.
 
-1. Pure Markdown agent definitions in `.opencode/agents/**/*.md`.
-2. Pure JSONC agent definitions under `agents` in `opencode.jsonc`.
-3. Read-only mixed-source effective views, with ambiguous provenance explicitly labeled.
-
-Initial source exclusions:
-
-- Persistent editing of mixed Markdown/JSONC configurations.
-- Automatic source selection when multiple configuration layers contribute to an agent.
-- File access visualization and editing.
-- Browser UI implementation.
+- **High:** read-only effective capability scope: what an agent may delegate to, see/change in the workspace, and invoke as a tool.
+- **Medium:** a companion web renderer over the same server analysis contract, especially for full-graph visualization and richer interaction.
+- **Later:** runtime session activity overlay after the static views are stable.
+- **Low:** source provenance and a convenience action to open a confidently identified agent configuration file. Persistent editing and graph gestures that change permissions are not planned work.
 
 ## OpenCode Research Baseline
 
@@ -43,6 +38,9 @@ Use OpenCode V2 documentation and exported types as the source of truth. V1 plug
 | Server plugins | Plugins use `Plugin.define({ id, setup })`. The context exposes `ctx.agent.list()`, `ctx.agent.get()`, transforms, permissions, events, storage, and custom RPC. | [Build plugins](https://opencode.ai/v2/docs/build/plugins/) |
 | Agent configuration | Current V2 agent configuration uses `agents` and `permissions`. Agents may be primary, subagent, or all. Markdown bodies provide the system instructions. | [Agents](https://opencode.ai/v2/docs/agents/) |
 | Permission model | Rules are ordered `{ action, resource, effect }`; effects are `allow`, `ask`, and `deny`; the last matching rule wins. The `subagent` action controls which child agent IDs may be launched. | [Permissions](https://opencode.ai/v2/docs/permissions/) |
+| Permission resources | `read` and `edit` resources are paths; `glob` is a glob query and `grep` is a regular-expression query. `shell`, `skill`, MCP, and other actions need action-specific projections rather than a path tree. | [Permission actions](https://opencode.ai/v2/docs/permissions/#actions) |
+| Scope evaluation | `ctx.permission.assert()` evaluates a session-bound request and may prompt or reject. It is unsuitable for read-only hypothetical scope evaluation, which must prospectively evaluate the runtime-resolved ordered rules. | [Plugin permission API](https://opencode.ai/v2/docs/build/plugins/#permissions) |
+| Scope inventories | The plugin context exposes filesystem/session APIs and skill and MCP inventories (`ctx.skill`, `ctx.mcp.list()`). Some HTTP API surfaces are experimental. | [Filesystem API](https://opencode.ai/v2/docs/api#filesystem), [skill API](https://opencode.ai/v2/docs/api#skill), [MCP API](https://opencode.ai/v2/docs/api#mcp) |
 | Configuration format | JSON and JSONC are supported. Configuration is merged by scope, and the published schema is the authoritative syntax definition. | [Configuration](https://opencode.ai/v2/docs/config/) and [schema](https://opencode.ai/config.json) |
 | Terminal UI | CLI plugins provide OpenTUI/Solid routes, panels, dialogs, slots, keyboard commands, and typed location data. They are the supported way to customize OpenCode's terminal UI. | [CLI plugins](https://opencode.ai/v2/docs/build/plugins/cli/) |
 | Plugin communication | Plugin RPC supports a shared typed contract usable by CLI plugins and later external clients. | [JavaScript client and plugin RPC](https://opencode.ai/v2/docs/build/client/) |
@@ -72,7 +70,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 ## Milestones
 
-**Status at the M3.5 checkpoint:** M0 through M3, plus M3.5 architecture/test cleanup, are complete and manually smoke-tested. M4 has not started.
+**Status at the M3.5 checkpoint:** M0 through M3, plus M3.5 architecture/test cleanup, are complete and manually smoke-tested. The next milestone is the read-only capability-scope foundation.
 
 ### M0: Plugin Skeleton and Research Contract
 
@@ -143,93 +141,93 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 **References:** [CLI routes and tabs](https://opencode.ai/v2/docs/build/plugins/cli/#routes-and-tabs), [CLI session panels](https://opencode.ai/v2/docs/build/plugins/cli/#session-panels), [CLI commands and keymaps](https://opencode.ai/v2/docs/build/plugins/cli/#commands-and-keymaps), [CLI dialogs](https://opencode.ai/v2/docs/build/plugins/cli/#dialogs-and-toasts).
 
-### M4: Configuration Source Inspection
+### M4: Capability Scope Foundation
 
-**Outcome:** source-level instruction and configuration inspection for unambiguous pure Markdown and pure JSONC projects.
-
-**Work:**
-
-- Discover relevant OpenCode configuration locations and agent files.
-- Parse Markdown frontmatter and retain the body as the prose instruction text.
-- Parse JSONC `agents` entries while preserving comments and formatting data for later editing.
-- Compare sources to the effective runtime view and label inherited, merged, overridden, or unresolved fields.
-- Explicitly detect mixed-source ambiguity rather than making unsafe attribution claims.
-
-**Acceptance criteria:** the details view can show prose instructions for an agent whose source is unambiguous Markdown or JSONC; an agent with multiple contributing sources displays that limitation clearly.
-
-**Reasoning:** plugins have no documented persistent config-file read/write API. Source parsing is application-owned work and must remain separate from runtime transforms.
-
-**References:** [Agent file formats](https://opencode.ai/v2/docs/agents/#formats), [Configuration locations and merging](https://opencode.ai/v2/docs/config/#locations), [configuration schema](https://opencode.ai/config.json).
-
-### M5: Safe Editing for Unambiguous Sources
-
-**Outcome:** opt-in editing of prose instructions and selected permission rules for a single, known source file.
+**Outcome:** a shared, read-only capability evaluator that explains an effective agent rule decision for an arbitrary action/resource pair and supplies action-specific projections.
 
 **Work:**
 
-- Enable edits only when ArgChart can identify one writable Markdown or JSONC source without ambiguity.
-- Use a staged proposal/review flow that shows the precise Markdown or JSONC changes before writing.
-- Preserve JSONC comments and formatting where feasible; preserve Markdown frontmatter and body boundaries.
-- Validate changed JSONC against the current OpenCode schema before write.
-- Write atomically, report failures, then trigger or instruct an OpenCode location reload.
-- Keep runtime preview changes explicitly separate from persisted source changes.
+- Generalize the current `subagent` evaluator without weakening its graph-specific target-mode constraints.
+- Define a stable decision/explanation contract: action, normalized resource, `allow`/`ask`/`deny`, final matching rule, and ordered-rule explanation.
+- Preserve documented wildcard, whole-value matching, last-match-wins, and default-`ask` semantics.
+- Define action-specific normalization and projection boundaries. Paths support file projections; `glob` and `grep` are query capabilities; shell commands, skills, MCP tools, and agent delegation are separate projections.
+- Evaluate only the runtime-resolved effective agent rules. Do not call `ctx.permission.assert()` for hypothetical scope because it is session-bound and may prompt.
+- Add invariants and unit tests for arbitrary actions, rule order, defaults, and action/resource normalization before filesystem traversal or tool UI work.
 
-**Acceptance criteria:** double-clicking an unambiguous source-backed agent opens an editable instruction view; saving shows a diff, validates it, writes only after confirmation, and refreshes the effective graph.
+**Acceptance criteria:** the server can return an explained prospective decision for a selected agent and supplied action/resource pair, while the current communication graph continues to preserve its existing behavior.
 
-**Reasoning:** `ctx.agent.transform()` changes runtime state but is not a persistent configuration editor. Safe persistent changes require source provenance, validation, and a deliberate reload.
+**Reasoning:** delegation, files, and tools all derive from ordered effective permission rules, but their resources do not share one meaning. A single evaluator with deliberately specialized projections avoids duplicating matching logic or misrepresenting query and command permissions as file access.
 
-**References:** [Plugin agent transforms](https://opencode.ai/v2/docs/build/plugins/#agent), [configuration schema](https://opencode.ai/config.json), [location reload API](https://opencode.ai/v2/docs/api#location.reload).
+**References:** [Permissions](https://opencode.ai/v2/docs/permissions/), [permission actions](https://opencode.ai/v2/docs/permissions/#actions), [Plugin permission API](https://opencode.ai/v2/docs/build/plugins/#permissions).
 
-### M6: Permission Editing Through Graph Gestures
+### M5: File Scope Explorer
 
-**Outcome:** graph interactions can propose, but not silently apply, permission-rule changes.
-
-**Work:**
-
-- Treat drawing or removing an edge as a request to modify ordered `subagent` rules, not as a direct edge mutation.
-- Generate the smallest explicit rule change that achieves the requested effect without hiding wildcard side effects.
-- Display rule order and all affected visible edges before confirmation.
-- Restrict persistent changes to the M5 unambiguous source cases.
-- Add regression tests for rule reordering and wildcard interactions.
-
-**Acceptance criteria:** a user can propose an `allow`, `ask`, or `deny` result for one eligible target and review the exact configuration diff plus affected graph edges before any write.
-
-**Reasoning:** edges are derived from ordered matching rules. Direct manipulation without an explanation would create surprising broader behavior.
-
-**References:** [Permission rule ordering](https://opencode.ai/v2/docs/permissions/#matching), [Permissions configuration](https://opencode.ai/v2/docs/permissions/#configure).
-
-### M7: File Access Exploration (Deferred)
-
-**Outcome:** a feasible, scalable design for showing file permissions, only after the communication graph is stable.
+**Outcome:** a read-only, selected-agent file-tree projection answering what workspace code the agent can read or edit.
 
 **Work:**
 
-- Prototype lazy filesystem traversal and per-path effective `read` and `edit` evaluation.
-- Represent `allow`, `ask`, and `deny` rather than a binary accessible/inaccessible state.
-- Prefer a filterable file tree and agent/file detail views over a literal all-agents-to-all-files graph.
-- Cache permission evaluations and avoid eagerly evaluating every path in large workspaces.
-- Document the difference between existing-file evaluation and future paths implied by wildcard rules.
+- Traverse the workspace lazily and evaluate existing paths with the M4 evaluator for `read` and `edit`.
+- Represent `allow`, `ask`, and `deny` independently for each applicable action.
+- Provide an agent-perspective mode that hides denied paths and collapses accessible directories as far as possible; label hidden paths as absent **or** denied.
+- Provide a diagnostic mode that shows denied and approval-required paths with their explanations.
+- Keep `glob` and `grep` out of access-state tree styling; present them as query capabilities linked to the same scope view.
+- Cache evaluations, avoid eager full-workspace evaluation, and distinguish existing paths from possible future paths matched by wildcards.
 
-**Exit decision:** proceed only if the interaction remains understandable and responsive on representative repositories.
+**Acceptance criteria:** a user can select an agent and inspect a responsive, explainable project-tree view of effective read/edit scope, including a clear distinction between allow, ask, and deny.
 
-**Reasoning:** permissions use resource patterns, not a stored accessible-file inventory. Enumerating a workspace and evaluating every path is possible but may create unacceptable visual and performance complexity.
+**Reasoning:** a file tree is the correct projection for path permissions, not an all-agents-to-all-files graph. It must remain truthful about hidden paths and scalable for real repositories.
 
-**References:** [Permission actions](https://opencode.ai/v2/docs/permissions/#actions), [Directories and path normalization](https://opencode.ai/v2/docs/permissions/#directories).
+**References:** [Permission actions](https://opencode.ai/v2/docs/permissions/#actions), [directories and path normalization](https://opencode.ai/v2/docs/permissions/#directories), [filesystem API](https://opencode.ai/v2/docs/api#filesystem).
 
-### M8: Optional Companion Web Viewer (Deferred)
+### M6: Tool Scope Explorer
+
+**Outcome:** a read-only selected-agent view of non-file capability scope.
+
+**Work:**
+
+- Project shell permission rules as command capability states, without implying that an arbitrary shell pattern is a filesystem path.
+- Inventory available skills through `ctx.skill` and MCP servers/tools through `ctx.mcp.list()`, then evaluate and explain their relevant permission actions/resources.
+- Present `glob` and `grep` as discovery and search query capabilities rather than file-access grants.
+- Include other runtime-exposed non-file actions only when their action/resource semantics and inventories are documented; label unavailable inventory separately from denied permission.
+- Reuse M4 decisions and explanations rather than creating a second policy model.
+
+**Acceptance criteria:** a selected agent's scope view identifies its effective shell, skill, MCP, and query capabilities, preserving the distinction between available inventory, `allow`, `ask`, and `deny`.
+
+**Reasoning:** this completes the practical question “what can this agent do?” without conflating tools with source-code visibility.
+
+**References:** [Permission actions](https://opencode.ai/v2/docs/permissions/#actions), [skill API](https://opencode.ai/v2/docs/api#skill), [MCP API](https://opencode.ai/v2/docs/api#mcp).
+
+### M7: Optional Companion Web Viewer (Deferred)
 
 **Outcome:** a browser-specific viewer that reuses the ArgChart analysis contract and interaction semantics.
 
 **Work:**
 
 - Keep the server-side graph analysis behind typed plugin RPC.
-- Build a browser renderer independently from OpenTUI while preserving graph states, edge explanations, and editing review semantics.
+- Build a browser renderer independently from OpenTUI while preserving graph and scope states, explanations, filters, and selection semantics.
+- Prioritize full-graph topology, click-driven filters, multi-hop inspection, node positioning, and session/activity visualization when it becomes available.
 - Connect through OpenCode's authenticated HTTP API and pairing flow.
 - Do not rely on undocumented plugin static-asset serving or browser UI injection.
 
-**Reasoning:** OpenCode documents terminal UI plugins, custom RPC, and external HTTP clients, but not a browser/desktop UI plugin embedding surface. A companion client is maintainable; an ad hoc HTTP server inside a plugin is technically possible but is not a stable extension contract.
+**Reasoning:** OpenCode documents terminal UI plugins, custom RPC, and external HTTP clients, but not a browser/desktop UI plugin embedding surface. A companion client is maintainable; an ad hoc HTTP server inside a plugin is technically possible but is not a stable extension contract. The web viewer is a renderer and input surface over shared ArgChart analysis, not a second policy-analysis platform.
 
 **References:** [Plugin RPC client](https://opencode.ai/v2/docs/build/client/#plugin-rpc), [HTTP API](https://opencode.ai/v2/docs/api), [CLI plugin API](https://opencode.ai/v2/docs/build/plugins/cli/).
+
+### M8: Source Convenience and Provenance (Low Priority)
+
+**Outcome:** optional source discovery and an “open agent configuration file” convenience action when ArgChart can identify a source confidently.
+
+**Work:**
+
+- Discover relevant Markdown and JSONC agent definitions and report their provenance relative to the effective runtime agent.
+- Explicitly label mixed or merged sources as ambiguous; never select a file automatically in those cases.
+- Open a known configuration file through the host/editor integration when available. Do not parse or write files solely to support this convenience.
+
+**Acceptance criteria:** an agent with one confidently identified source can offer an open-source action; ambiguous provenance is explained without a misleading action.
+
+**Reasoning:** source inspection is useful context, but it is not required to understand effective capability scope and is not a prerequisite for ArgChart's primary product direction.
+
+**References:** [Agent file formats](https://opencode.ai/v2/docs/agents/#formats), [configuration locations and merging](https://opencode.ai/v2/docs/config/#locations).
 
 ### M9: Runtime Session Activity Overlay (Deferred)
 
@@ -260,10 +258,10 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 ## Implementation Principles
 
-- Prefer OpenCode runtime APIs for effective behavior; do not reimplement permission semantics if an OpenCode evaluation API is available.
+- Prefer OpenCode runtime APIs for effective behavior. For read-only hypothetical scope evaluation, prospectively apply the documented effective-rule semantics; do not invoke session-bound permission assertion because it can prompt or reject.
 - Keep server-side graph analysis independent of terminal rendering.
 - Preserve `ask` as a first-class state.
-- Explain every edge and every proposed edit.
-- Never silently write configuration files.
-- Treat unsupported source combinations as explicit product states, not errors to guess through.
+- Explain every projected decision and any future source action.
+- Keep configuration writes out of the planned scope; never silently write configuration files.
+- Treat unavailable inventories and ambiguous source combinations as explicit product states, not errors to guess through.
 - Revalidate API assumptions against current V2 documentation and types before each milestone, because plugin and UI APIs evolve.
