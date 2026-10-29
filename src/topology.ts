@@ -1,4 +1,5 @@
 import type { CommunicationGraph, EdgeDecision } from "./domain.js"
+import { evaluatePermission } from "./permissions.ts"
 
 export const USER_NODE_ID = "argchart:user"
 
@@ -13,7 +14,7 @@ export interface TopologyEdge {
   source: string
   target: string
   decision: EdgeDecision
-  kind: "user-selection" | "subagent"
+  kind: "user-selection" | "user-question" | "subagent"
 }
 
 export interface CommunicationTopology {
@@ -54,6 +55,12 @@ export function buildCommunicationTopology(graph: CommunicationGraph): Communica
       ...graph.nodes
         .filter((node) => node.mode === "primary" || node.mode === "all")
         .map((node) => ({ source: USER_NODE_ID, target: node.id, decision: "allow" as const, kind: "user-selection" as const })),
+      ...graph.nodes.map((node) => ({
+        source: node.id,
+        target: USER_NODE_ID,
+        decision: evaluatePermission(node.permissions, { action: "question", resource: "*" }).decision,
+        kind: "user-question" as const,
+      })),
       ...graph.edges.map((edge) => ({
         source: edge.source,
         target: edge.target,
@@ -80,6 +87,15 @@ export function filterTopology(topology: CommunicationTopology, filters: Topolog
 }
 
 export function layoutLocalTopology(topology: CommunicationTopology, selectedID: string): LocalTopologyLayout {
+  const all = listLocalRelationships(topology, selectedID)
+  return {
+    inbound: all.filter((neighbor) => neighbor.inbound && !neighbor.outbound),
+    outbound: all.filter((neighbor) => neighbor.outbound),
+  }
+}
+
+/** One row per connected agent, with independent inbound/outbound decisions. */
+export function listLocalRelationships(topology: CommunicationTopology, selectedID: string): readonly LocalTopologyNeighbor[] {
   const neighbors = new Map<string, LocalTopologyNeighbor>()
   const node = (id: string) => topology.nodes.find((candidate) => candidate.id === id)
   const ensure = (id: string) => {
@@ -102,10 +118,5 @@ export function layoutLocalTopology(topology: CommunicationTopology, selectedID:
     if (right.node.id === USER_NODE_ID) return 1
     return left.node.label.localeCompare(right.node.label)
   }
-  const all = [...neighbors.values()]
-
-  return {
-    inbound: all.filter((neighbor) => neighbor.inbound && !neighbor.outbound).sort(compare),
-    outbound: all.filter((neighbor) => neighbor.outbound).sort(compare),
-  }
+  return [...neighbors.values()].sort(compare)
 }

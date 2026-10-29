@@ -1,14 +1,26 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { analyzeCommunicationGraph } from "../src/graph.ts"
-import { USER_NODE_ID, buildCommunicationTopology, defaultTopologyFilters, filterTopology, layoutLocalTopology } from "../src/topology.ts"
+import { USER_NODE_ID, buildCommunicationTopology, defaultTopologyFilters, filterTopology, layoutLocalTopology, listLocalRelationships } from "../src/topology.ts"
 import { node } from "./fixtures.ts"
 
-test("topology adds User edges for primary and all agents but not subagent-only agents", () => {
-  const graph = analyzeCommunicationGraph({ view: "effective-runtime", refreshedAt: "2026-10-27T00:00:00.000Z", nodes: [node("primary", "primary"), node("all", "all"), node("subagent", "subagent")] })
+test("topology adds User selection and question edges", () => {
+  const graph = analyzeCommunicationGraph({
+    view: "effective-runtime",
+    refreshedAt: "2026-10-27T00:00:00.000Z",
+    nodes: [
+      node("primary", "primary", [{ action: "question", resource: "*", effect: "allow" }]),
+      node("all", "all", [{ action: "question", resource: "*", effect: "ask" }]),
+      node("subagent", "subagent", [{ action: "question", resource: "*", effect: "deny" }]),
+    ],
+  })
   const topology = buildCommunicationTopology(graph)
   assert.deepEqual(topology.edges.filter((edge) => edge.kind === "user-selection").map((edge) => edge.target), ["primary", "all"])
   assert.equal(topology.edges.some((edge) => edge.source === USER_NODE_ID && edge.target === "subagent"), false)
+  assert.deepEqual(
+    topology.edges.filter((edge) => edge.kind === "user-question").map((edge) => [edge.source, edge.decision]),
+    [["primary", "allow"], ["all", "ask"], ["subagent", "deny"]],
+  )
 })
 
 test("default topology filters hide subagents and deny edges", () => {
@@ -35,8 +47,12 @@ test("localized layout assigns every neighbor once and keeps two-way agents on t
   })
   const topology = filterTopology(buildCommunicationTopology(graph), { showSubagents: true, showAskEdges: true, showDenyEdges: false })
   const layout = layoutLocalTopology(topology, "selected")
-  assert.deepEqual(layout.inbound.map((neighbor) => neighbor.node.id), [USER_NODE_ID, "inbound"])
-  assert.deepEqual(layout.outbound.map((neighbor) => neighbor.node.id), ["outbound", "two-way"])
+  assert.deepEqual(layout.inbound.map((neighbor) => neighbor.node.id), ["inbound"])
+  assert.deepEqual(layout.outbound.map((neighbor) => neighbor.node.id), [USER_NODE_ID, "outbound", "two-way"])
   assert.equal(layout.outbound.find((neighbor) => neighbor.node.id === "two-way")?.inbound?.decision, "allow")
   assert.equal(layout.outbound.find((neighbor) => neighbor.node.id === "two-way")?.outbound?.decision, "ask")
+  const relationships = listLocalRelationships(topology, "selected")
+  assert.deepEqual(relationships.map((neighbor) => neighbor.node.id), [USER_NODE_ID, "inbound", "outbound", "two-way"])
+  assert.equal(relationships.find((neighbor) => neighbor.node.id === "two-way")?.inbound?.decision, "allow")
+  assert.equal(relationships.find((neighbor) => neighbor.node.id === "two-way")?.outbound?.decision, "ask")
 })
