@@ -14,7 +14,10 @@ export default Plugin.define({
 
     await ctx.rpc.register(ArgChartRPC, {
       "inventory.refresh": () => inventory.refresh(),
-      "graph.refresh": async () => analyzeCommunicationGraph(await inventory.refresh()),
+      "graph.refresh": async () => {
+        fileScope.clearCache()
+        return analyzeCommunicationGraph(await inventory.refresh())
+      },
       "permission.evaluate": async (input) => {
         const request = input as { agentID: string; action: string; resource: string }
         const agent = (await inventory.refresh()).nodes.find((node) => node.id === request.agentID)

@@ -2,12 +2,12 @@ import type { CommunicationGraph } from "../domain.js"
 import { usePlugin } from "@opencode/plugin/tui"
 import { For } from "solid-js"
 
-export function AgentNavigator(props: { graph: CommunicationGraph; focusedAgentID?: string }) {
+export function AgentNavigator(props: { graph: CommunicationGraph; focusedAgentID?: string; focused: boolean }) {
   const context = usePlugin()
 
   return (
     <box flexDirection="column" width={34} height="100%" overflow="scroll" borderStyle="single" borderColor={context.theme.border.base} padding={1}>
-      <text fg={context.theme.text.muted}>AGENTS ({props.graph.nodes.length})</text>
+      <text fg={props.focused ? context.theme.text.action.primary.base : context.theme.text.muted}>AGENTS ({props.graph.nodes.length}) · g focus</text>
       <box flexDirection="row">
         <text width={20} fg={context.theme.text.muted}>NAME</text>
         <text width={10} fg={context.theme.text.muted}>MODE</text>

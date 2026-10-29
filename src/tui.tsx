@@ -9,7 +9,6 @@ export default Plugin.define({
   setup(context) {
     const inventory = context.client.rpc(ArgChartRPC)
     const [topologyFilters, updateTopologyFilters] = context.storage.memory("topology-filters", { initial: defaultTopologyFilters })
-    const [, updateViewerOptions] = context.storage.memory("viewer-options", { initial: { showDetails: true } })
     const unregisterRoute = context.ui.router.register({
       name: "argchart",
       render: () => <ArgChartViewer />,
@@ -81,13 +80,6 @@ export default Plugin.define({
           group: "ArgChart filters",
           palette: true,
           run: () => updateTopologyFilters((filters) => { filters.showDenyEdges = !filters.showDenyEdges }),
-        },
-        {
-          id: "argchart.toggle-details",
-          title: "Toggle ArgChart details panel",
-          group: "ArgChart",
-          palette: true,
-          run: () => updateViewerOptions((options) => { options.showDetails = !options.showDetails }),
         },
         {
           id: "argchart.refresh-inventory",

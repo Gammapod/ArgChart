@@ -70,12 +70,17 @@ export interface FileScopeEntry {
   exists: boolean
   read: PermissionDecision
   edit: PermissionDecision
+  /** A nested path has a different effective read decision. */
+  readHasNestedException: boolean
+  /** A nested path has a different effective edit decision. */
+  editHasNestedException: boolean
 }
 
 export interface FileScopeDirectory {
   view: "effective-runtime"
   agentID: AgentID
   path: string
+  /** Direct children only; request a directory path to load its children. */
   entries: readonly FileScopeEntry[]
 }
 

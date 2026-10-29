@@ -11,9 +11,10 @@ interface ScopeNode {
   children: Map<string, ScopeNode>
 }
 
-/** Read-only, lazy projection of one workspace directory for one agent. */
+/** Read-only, directory-lazy projection of one workspace directory for one agent. */
 export class FileScopeService {
   private readonly workspace: string
+  private readonly directoryCache = new Map<string, Promise<FileScopeDirectory>>()
 
   constructor(workspace: string) {
     this.workspace = workspace
@@ -21,27 +22,48 @@ export class FileScopeService {
 
   async list(agent: GraphNode, requestedPath = ""): Promise<FileScopeDirectory> {
     const path = normalizeDirectoryPath(requestedPath)
+    const cacheKey = `${agent.id}\0${path}\0${JSON.stringify(agent.permissions)}`
+    let result = this.directoryCache.get(cacheKey)
+    if (!result) {
+      result = this.readDirectory(agent, path)
+      this.directoryCache.set(cacheKey, result)
+      void result.catch(() => {
+        // Do not make a transient filesystem error permanent for this agent
+        // and directory; a later expansion can retry it.
+        if (this.directoryCache.get(cacheKey) === result) this.directoryCache.delete(cacheKey)
+      })
+    }
+    return result
+  }
+
+  clearCache(): void {
+    this.directoryCache.clear()
+  }
+
+  private async readDirectory(agent: GraphNode, path: string): Promise<FileScopeDirectory> {
     const directory = resolve(this.workspace, path)
     assertInWorkspace(this.workspace, directory)
-    const root = createNode("", "", "directory", true)
-    await this.readTree(directory, path, root)
-    addVirtualRulePaths(root, agent.permissions)
+    // The synthetic root represents the requested directory so its baseline
+    // decision and each child's full resource path remain correct.
+    const root = createNode("", path, "directory", true)
+    await this.readDirectoryEntries(directory, path, root)
+    addVirtualRuleChildren(root, agent.permissions, path)
     const entries = projectTree(root, agent)
     return { view: "effective-runtime", agentID: agent.id, path, entries }
   }
 
-  private async readTree(directory: string, relativePath: string, parent: ScopeNode): Promise<void> {
+  private async readDirectoryEntries(directory: string, relativePath: string, parent: ScopeNode): Promise<void> {
     const diskEntries = await readdir(directory, { withFileTypes: true })
     for (const entry of diskEntries) {
       if (entry.isSymbolicLink() || isIgnoredDirectory(entry.name, entry.isDirectory())) continue
       const path = joinPath(relativePath, entry.name)
-      const node = ensureNode(parent, [entry.name], entry.isDirectory() ? "directory" : "file", true)
-      if (entry.isDirectory()) await this.readTree(resolve(directory, entry.name), path, node)
+      ensureNode(parent, [entry.name], entry.isDirectory() ? "directory" : "file", true)
     }
   }
 }
 
-function addVirtualRulePaths(root: ScopeNode, rules: readonly PermissionRule[]): void {
+function addVirtualRuleChildren(root: ScopeNode, rules: readonly PermissionRule[], directoryPath: string): void {
+  const directorySegments = directoryPath ? directoryPath.split("/") : []
   for (const rule of rules) {
     if (rule.action !== "read" && rule.action !== "edit") continue
     let resource: string
@@ -51,8 +73,12 @@ function addVirtualRulePaths(root: ScopeNode, rules: readonly PermissionRule[]):
     // A glob has no concrete leaf. Materialize its literal directory prefix,
     // if any, so a rule such as assets/* can be represented truthfully.
     const literalPath = wildcardAt < 0 ? segments : segments.slice(0, wildcardAt)
-    if (!literalPath.length) continue
-    ensureNode(root, literalPath, wildcardAt < 0 ? "file" : "directory", false)
+    if (literalPath.length < directorySegments.length || !directorySegments.every((segment, index) => literalPath[index] === segment)) continue
+    const remainingPath = literalPath.slice(directorySegments.length)
+    if (!remainingPath.length) continue
+    // Only materialize an immediate child. Descendants are loaded if and when
+    // the viewer opens the corresponding directory.
+    ensureNode(root, [remainingPath[0]], remainingPath.length > 1 || wildcardAt >= 0 ? "directory" : "file", false)
   }
 }
 
@@ -71,7 +97,16 @@ function projectChildren(parent: ScopeNode, parentState: ScopeState, agent: Grap
     // always shown because the rule explicitly names them.
     const show = node.kind === "directory" || !node.exists || !sameState(state, parentState)
     if (!show) continue
-    output.push({ path: node.path, name: node.name, depth, kind: node.kind, exists: node.exists, ...state })
+    output.push({
+      path: node.path,
+      name: node.name,
+      depth,
+      kind: node.kind,
+      exists: node.exists,
+      ...state,
+      readHasNestedException: hasNestedException(node, agent, "read", state.read.decision),
+      editHasNestedException: hasNestedException(node, agent, "edit", state.edit.decision),
+    })
     output.push(...children)
   }
   return output
@@ -95,6 +130,23 @@ function scopeState(node: ScopeNode, agent: GraphNode): ScopeState {
 
 function sameState(left: ScopeState, right: ScopeState): boolean {
   return left.read.decision === right.read.decision && left.edit.decision === right.edit.decision
+}
+
+function hasNestedException(node: ScopeNode, agent: GraphNode, action: "read" | "edit", decision: ScopeState["read"]["decision"]): boolean {
+  if (node.kind !== "directory") return false
+  const prefix = node.path ? `${node.path}/` : ""
+  return agent.permissions.some((rule) => {
+    if (rule.action !== action) return false
+    let resource: string
+    try { resource = normalizeResource(action, rule.resource) } catch { return false }
+    // A rule whose literal start is outside this directory cannot prove an
+    // exception below it. Replacing wildcards produces a representative path
+    // that is then evaluated through the complete, ordered effective rules.
+    if (!resource.startsWith(prefix)) return false
+    const witness = resource.replace(/\*/g, ".argchart-exception").replace(/\?/g, "x")
+    if (!witness.startsWith(prefix) || witness === node.path) return false
+    return evaluatePermission(agent.permissions, { action, resource: witness }).decision !== decision
+  })
 }
 
 function sortedChildren(node: ScopeNode): ScopeNode[] {
