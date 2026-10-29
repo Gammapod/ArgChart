@@ -256,6 +256,21 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 **References:** [Plugin event API](https://opencode.ai/v2/docs/build/plugins/), [CLI event data](https://opencode.ai/v2/docs/build/plugins/cli/#events), [Session API](https://opencode.ai/v2/docs/api#session), [event stream API](https://opencode.ai/v2/docs/api#event), [permission API](https://opencode.ai/v2/docs/api#permission).
 
+### M10: Robust Nested-Exception Analysis (Conditional)
+
+**Trigger:** begin this milestone when testing identifies a false-positive or false-negative nested-exception marker in the file-scope explorer.
+
+**Outcome:** replace the current representative-path heuristic for the file-scope `*` marker with a sound, explainable analysis of whether descendants can have a different effective decision for each action.
+
+**Work:**
+
+- Define the supported path-pattern subset and its witness/region semantics explicitly.
+- Analyze ordered, last-match-wins rules without relying on one synthesized descendant path.
+- Preserve independent read and edit markers, and explain the rule or rule region responsible for each marker.
+- Add regression fixtures for overlapping `*`, `**`, `?`, literal-file, and later-override patterns.
+
+**Reasoning:** the current marker is useful targeted guidance, but it is heuristic. It must not silently become an authority on all possible descendants until its pattern analysis is validated against a counterexample.
+
 ## Implementation Principles
 
 - Prefer OpenCode runtime APIs for effective behavior. For read-only hypothetical scope evaluation, prospectively apply the documented effective-rule semantics; do not invoke session-bound permission assertion because it can prompt or reject.

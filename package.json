@@ -8,7 +8,7 @@
     "./tui": "./tui.ts"
   },
   "scripts": {
-    "test": "node --test test/permission.test.ts test/file-scope.test.ts test/communication-graph.test.ts test/topology.test.ts test/mermaid.test.ts test/selection.test.ts test/inventory.test.ts",
+    "test": "node --test test/permission.test.ts test/file-scope.test.ts test/file-scope-tree.test.ts test/communication-graph.test.ts test/topology.test.ts test/mermaid.test.ts test/selection.test.ts test/inventory.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

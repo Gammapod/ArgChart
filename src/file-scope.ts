@@ -84,14 +84,14 @@ function addVirtualRuleChildren(root: ScopeNode, rules: readonly PermissionRule[
 
 function projectTree(root: ScopeNode, agent: GraphNode): FileScopeEntry[] {
   const rootState = scopeState(root, agent)
-  return projectChildren(root, rootState, agent, 0)
+  return projectChildren(root, rootState, agent)
 }
 
-function projectChildren(parent: ScopeNode, parentState: ScopeState, agent: GraphNode, depth: number): FileScopeEntry[] {
+function projectChildren(parent: ScopeNode, parentState: ScopeState, agent: GraphNode): FileScopeEntry[] {
   const output: FileScopeEntry[] = []
   for (const node of sortedChildren(parent)) {
     const state = scopeState(node, agent)
-    const children = node.kind === "directory" ? projectChildren(node, state, agent, depth + 1) : []
+    const children = node.kind === "directory" ? projectChildren(node, state, agent) : []
     // Directories establish useful project structure. Actual files are only
     // shown when they differ from their containing scope; virtual literals are
     // always shown because the rule explicitly names them.
@@ -100,7 +100,6 @@ function projectChildren(parent: ScopeNode, parentState: ScopeState, agent: Grap
     output.push({
       path: node.path,
       name: node.name,
-      depth,
       kind: node.kind,
       exists: node.exists,
       ...state,

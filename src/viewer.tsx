@@ -6,7 +6,8 @@ import { buildCommunicationTopology, defaultTopologyFilters, filterTopology, lay
 import { AgentNavigator } from "./tui/agent-navigator.js"
 import { emptySelection, focusAgent, moveFocusedAgent, reconcileSelection } from "./tui/selection.js"
 import { TopologyPanel } from "./tui/topology-panel.js"
-import { FileScopePanel, type FileScopeTreeEntry } from "./tui/file-scope-panel.js"
+import { FileScopePanel } from "./tui/file-scope-panel.js"
+import { buildFileScopeTree, clampFileScopeSelection } from "./tui/file-scope-tree.js"
 import { AgentContextPanel } from "./tui/agent-context-panel.js"
 import { ToolsPanel } from "./tui/tools-panel.js"
 
@@ -26,26 +27,7 @@ export function ArgChartViewer() {
   const selected = createMemo(() => graph()?.nodes.find((node) => node.id === selection.focusedAgentID))
   const topology = createMemo(() => graph() ? filterTopology(buildCommunicationTopology(graph()!), filters) : undefined)
   const localTopology = createMemo(() => selected() && topology() ? layoutLocalTopology(topology()!, selected()!.id) : undefined)
-  const visibleFileEntries = createMemo((): readonly FileScopeTreeEntry[] => {
-    const scopes = fileScopes()
-    const expanded = expandedFileScopePaths()
-    const loading = loadingFileScopePaths()
-    const visit = (path: string, depth: number): FileScopeTreeEntry[] => {
-      const scope = scopes[path]
-      if (!scope) return []
-      return scope.entries
-        // Directories are structural boundaries. Keep denied ones visible so
-        // users can reach a later, more-specific allow/ask exception (and so
-        // a denied scope is not silently mistaken for an absent one).
-        .filter((entry) => entry.kind === "directory" || entry.read.decision !== "deny" || entry.edit.decision !== "deny")
-        .flatMap((entry) => {
-          const entryExpanded = entry.kind === "directory" && expanded.has(entry.path)
-          const row: FileScopeTreeEntry = { entry, depth, expanded: entryExpanded, loading: loading.has(entry.path) }
-          return entryExpanded ? [row, ...visit(entry.path, depth + 1)] : [row]
-        })
-    }
-    return visit("", 0)
-  })
+  const visibleFileEntries = createMemo(() => buildFileScopeTree(fileScopes(), expandedFileScopePaths(), loadingFileScopePaths()))
   let scopedAgentID: string | undefined
   const fileScopeRequests = new Map<string, Promise<FileScopeDirectory | undefined>>()
 
@@ -100,7 +82,6 @@ export function ArgChartViewer() {
     }
   }
 
-  const expandAllFileScopeDirectories = () => expandFileScopeDirectories(() => true)
   const expandExceptionFileScopeDirectories = () => expandFileScopeDirectories((entry) => entry.readHasNestedException || entry.editHasNestedException)
   const collapseAllFileScopeDirectories = () => setExpandedFileScopePaths(new Set<string>())
 
@@ -124,7 +105,7 @@ export function ArgChartViewer() {
 
   createEffect(() => {
     const entries = visibleFileEntries()
-    setFileScopeEntryIndex((current) => Math.min(current, Math.max(0, entries.length - 1)))
+    setFileScopeEntryIndex((current) => clampFileScopeSelection(current, entries))
   })
 
   const refresh = async () => {
@@ -132,6 +113,14 @@ export function ArgChartViewer() {
       setError(undefined)
       const result = (await client["graph.refresh"]({}, { location: context.location })) as CommunicationGraph
       const isInitialLoad = graph() === undefined
+      // Refresh invalidates the server cache. Reset the client projection too,
+      // even when the same agent remains focused.
+      scopedAgentID = undefined
+      setFileScopes({})
+      setExpandedFileScopePaths(new Set<string>())
+      setLoadingFileScopePaths(new Set<string>())
+      fileScopeRequests.clear()
+      setFileScopeEntryIndex(0)
       setGraph(result)
       updateSelection((current) => {
         const reconciled = reconcileSelection(result, current)
@@ -187,7 +176,6 @@ export function ArgChartViewer() {
       { id: "argchart.viewer.focus-agents", title: "Focus ArgChart agent navigator", bind: "g", run: () => setActivePanel("agents") },
       { id: "argchart.viewer.focus-file-scope", title: "Focus ArgChart file scope", bind: "f", run: () => setActivePanel("file-scope") },
       { id: "argchart.viewer.file-scope-toggle", title: "Expand or collapse selected file-scope directory", bind: "enter", run: toggleFocusedFileScopeDirectory },
-      { id: "argchart.viewer.file-scope-expand-all", title: "Expand all file-scope directories", bind: "e", run: expandAllFileScopeDirectories },
       { id: "argchart.viewer.file-scope-expand-exceptions", title: "Expand file-scope directories with nested exceptions", bind: "x", run: expandExceptionFileScopeDirectories },
       { id: "argchart.viewer.file-scope-collapse-all", title: "Collapse all file-scope directories", bind: "c", run: collapseAllFileScopeDirectories },
     ],
@@ -200,7 +188,7 @@ export function ArgChartViewer() {
       <box justifyContent="space-between">
         <text fg={context.theme.text.base}>ArgChart · {selected()?.name ?? "no agent selected"}</text>
         <text fg={context.theme.text.muted}>
-          filters: subagents {filters.showSubagents ? "on" : "off"} · ask {filters.showAskEdges ? "on" : "off"} · deny {filters.showDenyEdges ? "on" : "off"} · {activePanel() === "agents" ? "agents" : "files"} focus
+          filters: subagents {filters.showSubagents ? "on" : "off"} · ask {filters.showAskEdges ? "on" : "off"} · deny {filters.showDenyEdges ? "on" : "off"} · r refresh · {activePanel() === "agents" ? "agents" : "files"} focus
         </text>
       </box>
       <Show when={error()}>{(message) => <text fg={context.theme.text.feedback.error.base}>{message()}</text>}</Show>

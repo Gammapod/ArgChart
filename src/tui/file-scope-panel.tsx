@@ -1,15 +1,9 @@
 import { usePlugin } from "@opencode/plugin/tui"
-import { For, Show } from "solid-js"
-import type { EdgeDecision, FileScopeDirectory, FileScopeEntry } from "../domain.js"
+import { createEffect, For, Show } from "solid-js"
+import type { EdgeDecision, FileScopeDirectory } from "../domain.js"
+import type { FileScopeTreeEntry } from "./file-scope-tree.js"
 
 const symbol: Record<EdgeDecision, string> = { allow: "✓", ask: "?", deny: "×" }
-
-export interface FileScopeTreeEntry {
-  entry: FileScopeEntry
-  depth: number
-  expanded: boolean
-  loading: boolean
-}
 
 export function FileScopePanel(props: {
   scope: FileScopeDirectory
@@ -18,11 +12,15 @@ export function FileScopePanel(props: {
   focusedIndex: number
 }) {
   const context = usePlugin()
+  let scrollbox: { scrollChildIntoView(childID: string): void } | undefined
+  createEffect(() => {
+    if (props.focused) scrollbox?.scrollChildIntoView(`argchart-file-scope-row-${props.focusedIndex}`)
+  })
   return (
-    <box flexDirection="column" height="100%" flexGrow={1} overflow="scroll" borderStyle="single" borderColor={context.theme.border.base} padding={1}>
+    <scrollbox ref={(value) => { scrollbox = value }} contentOptions={{ flexDirection: "column" }} height="100%" flexGrow={1} borderStyle="single" borderColor={context.theme.border.base} padding={1}>
       <text fg={props.focused ? context.theme.text.action.primary.base : context.theme.text.base}>FILE SCOPE · {props.scope.agentID} · /{props.scope.path || ""}</text>
       <box flexDirection="row">
-        <text fg={context.theme.text.muted}>f focus · j/k select · enter toggle · e all · x exceptions · c collapse · * nested exception</text>
+        <text fg={context.theme.text.muted}>f focus · j/k select · enter toggle · x exceptions · c collapse · * nested exception</text>
       </box>
       <box flexDirection="row">
         <text width={42} fg={context.theme.text.muted}>NAME</text>
@@ -30,20 +28,20 @@ export function FileScopePanel(props: {
         <text width={8} fg={context.theme.text.muted}>EDIT</text>
       </box>
       <For each={props.entries} fallback={<text fg={context.theme.text.muted}>No accessible or approval-required entries.</text>}>
-        {(treeEntry, index) => <FileScopeRow treeEntry={treeEntry} selected={props.focused && index() === props.focusedIndex} />}
+        {(treeEntry, index) => <FileScopeRow treeEntry={treeEntry} index={index()} selected={props.focused && index() === props.focusedIndex} />}
       </For>
-    </box>
+    </scrollbox>
   )
 }
 
-function FileScopeRow(props: { treeEntry: FileScopeTreeEntry; selected: boolean }) {
+function FileScopeRow(props: { treeEntry: FileScopeTreeEntry; index: number; selected: boolean }) {
   const context = usePlugin()
   const entry = () => props.treeEntry.entry
   const nameColor = () => entry().exists ? context.theme.text.base : context.theme.text.feedback.info.base
   const folderSymbol = () => props.treeEntry.loading ? "⋯ " : props.treeEntry.expanded ? "▼ " : "▶ "
   const name = () => `${"  ".repeat(props.treeEntry.depth)}${entry().kind === "directory" ? folderSymbol() : "  "}${entry().name}`
   return (
-    <box flexDirection="row">
+    <box id={`argchart-file-scope-row-${props.index}`} flexDirection="row">
       <text width={42} fg={props.selected ? context.theme.text.action.primary.base : nameColor()}>{props.selected ? "› " : "  "}{name()}</text>
       <Decision decision={entry().read.decision} hasNestedException={entry().readHasNestedException} />
       <Decision decision={entry().edit.decision} hasNestedException={entry().editHasNestedException} />

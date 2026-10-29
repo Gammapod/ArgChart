@@ -65,7 +65,6 @@ export type FileScopeEntryKind = "file" | "directory" | "pattern"
 export interface FileScopeEntry {
   path: string
   name: string
-  depth: number
   kind: FileScopeEntryKind
   exists: boolean
   read: PermissionDecision

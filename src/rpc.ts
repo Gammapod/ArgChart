@@ -159,11 +159,11 @@ export const ArgChartRPC = Rpc.define({
             items: {
               type: "object",
               properties: {
-                path: { type: "string" }, name: { type: "string" }, depth: { type: "number" }, kind: { enum: ["file", "directory", "pattern"] },
+                path: { type: "string" }, name: { type: "string" }, kind: { enum: ["file", "directory", "pattern"] },
                 exists: { type: "boolean" }, read: permissionDecisionSchema, edit: permissionDecisionSchema,
                 readHasNestedException: { type: "boolean" }, editHasNestedException: { type: "boolean" },
               },
-                required: ["path", "name", "depth", "kind", "exists", "read", "edit", "readHasNestedException", "editHasNestedException"],
+                required: ["path", "name", "kind", "exists", "read", "edit", "readHasNestedException", "editHasNestedException"],
               additionalProperties: false,
             },
           },
