@@ -67,6 +67,39 @@ const inventorySchema = {
   additionalProperties: false,
 } as const
 
+const activitySnapshotSchema = {
+  type: "object",
+  properties: {
+    view: { const: "runtime-api" },
+    generatedAt: { type: "string", format: "date-time" },
+    sessions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" }, parentID: { type: "string" }, agentID: { type: "string" }, title: { type: "string" },
+          createdAt: { type: "number" }, updatedAt: { type: "number" }, outcome: { enum: ["succeeded", "failed", "interrupted"] },
+        },
+        required: ["id", "createdAt", "updatedAt"],
+        additionalProperties: false,
+      },
+    },
+    observedChildSessions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          parentSessionID: { type: "string" }, childSessionID: { type: "string" }, sourceAgentID: { type: "string" }, targetAgentID: { type: "string" },
+        },
+        required: ["parentSessionID", "childSessionID", "sourceAgentID", "targetAgentID"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["view", "generatedAt", "sessions", "observedChildSessions"],
+  additionalProperties: false,
+} as const
+
 const graphSchema = {
   type: "object",
   properties: {
@@ -131,6 +164,10 @@ export const ArgChartRPC = Rpc.define({
     "graph.refresh": {
       input: { type: "object", properties: {}, additionalProperties: false },
       output: graphSchema,
+    },
+    "activity.refresh": {
+      input: { type: "object", properties: {}, additionalProperties: false },
+      output: activitySnapshotSchema,
     },
     "permission.evaluate": {
       input: {

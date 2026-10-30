@@ -1,16 +1,16 @@
 ---
 type: Architecture decision record
-title: ArgChart architecture through M5
-description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime inspector, relationships dashboard, and file-scope explorer.
+title: ArgChart architecture through M9
+description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime inspector, capability dashboard, and runtime session overlay.
 tags: [architecture, decisions, opencode, permissions, terminal-ui]
 status: active
 ---
 
-# ArgChart architecture through M5
+# ArgChart architecture through M9
 
 ## Current capability boundary
 
-ArgChart is a read-only, effective-runtime inspector. It inventories the agents resolved by OpenCode for the active location, evaluates their effective permissions prospectively, and presents selected-agent relationships plus read/edit file scope in an OpenTUI dashboard.
+ArgChart is a read-only, effective-runtime inspector. It inventories the agents resolved by OpenCode for the active location, evaluates their effective permissions prospectively, and presents selected-agent relationships, read/edit file scope, and current/recent session activity in an OpenTUI dashboard.
 
 It does not yet inspect or attribute a configuration source file. A custom Markdown agent observed in the effective runtime registry is evidence that OpenCode resolved it, not evidence that ArgChart has parsed its Markdown. JSON/JSONC and other custom-agent source formats have not yet been manually validated as inventory inputs.
 
@@ -62,7 +62,7 @@ Agents in `primary` mode do not receive incoming callable graph edges. Instead, 
 
 ### Use a selected-agent dashboard with a relationship table, not a terminal graph
 
-The terminal route presents a stable agent rail, a scrollable relationship table, safe identity/context metadata, a lazy file-scope explorer, and a placeholder tool-scope panel. The relationship table presents each connected agent once with independent **Calls Me** and **I Can Call** decisions. Keyboard focus supports agents, relationships, and file scope; `j`/`k` moves within the focused panel and `r` refreshes.
+The terminal route presents a stable agent rail with latest-session status, a scrollable relationship table with outbound child-session status, safe identity/context metadata, a lazy file-scope explorer, and a current-session prompt/response preview. The relationship table presents each connected agent once with independent **Calls Me** and **I Can Call** decisions. Keyboard focus supports agents, relationships, and file scope; `j`/`k` moves within the focused panel and `r` refreshes.
 
 **Consequence:** terminal users can inspect dense relationship sets without overlapping node labels. Whole-topology graph exploration remains a web-viewer concern; Mermaid remains an explicit snapshot export.
 
@@ -92,9 +92,17 @@ File scope loads only one directory at a time and caches results by effective ag
 
 ### Expose safe agent context; defer raw instructions
 
-The context panel displays identity, mode, model, hidden state, and description. It deliberately does not expose raw runtime instructions. Tools likewise have a dedicated dashboard region but await the action-specific M6 projection.
+The context panel displays identity, mode, model, hidden state, and description. It deliberately does not expose raw runtime instructions. The current-session panel deliberately shows only the newest user prompt and latest subsequent assistant text from the selected agent's current or recent session; reasoning, tools, shell output, and system content remain excluded.
 
 **Consequence:** context remains safe by default, while instruction disclosure and tool capability rendering remain deliberate future product decisions.
+
+### Overlay runtime activity without changing configured capability semantics
+
+The server returns a safe snapshot of the 100 most recent non-archived workspace sessions, including current parent/child hierarchy and terminal outcomes. The TUI adds live active-session and session-permission state from OpenCode, refreshes from session and permission events, and never persists raw message content or an ArgChart-owned event log.
+
+An agent status prefers an active session, then its most recently updated session. A relationship status represents the newest observed child session from the selected agent to that relationship target. Parent attribution intentionally uses the current parent session agent, not the agent at child creation. Pending permission state is `approval`; a failed permission sync is shown as `? approval` rather than treated as no pending request.
+
+**Consequence:** configured `allow`/`ask`/`deny` remains prospective policy, while Status is a separate best-effort runtime overlay. Session hierarchy remains observed evidence, not proof that a particular subagent permission caused a child session; forks and durable detailed history remain deferred.
 
 ## Verified behavior
 
@@ -106,6 +114,9 @@ Manual checks through M5 confirmed that the viewer:
 - loads file scope by directory, expands/collapses the visible tree, and retains selection while scrolling;
 - distinguishes read and edit decisions, including nested exceptions and virtual rule-derived paths;
 - retains each normalized agent's effective permission rules for action-specific analysis without exposing raw instruction payloads.
+- recovers recent session status and hierarchy from OpenCode when the viewer opens, including activity that occurred while the viewer was closed;
+- updates agent and relationship status from live session and permission events, including pending approval;
+- opens the represented session from agent and relationship status, and previews only the latest allowed prompt/response text for the selected agent.
 
 ## Deferred questions
 

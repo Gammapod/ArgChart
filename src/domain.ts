@@ -83,6 +83,33 @@ export interface FileScopeDirectory {
   entries: readonly FileScopeEntry[]
 }
 
+/** A safe, read-only projection of a session returned by OpenCode's session API. */
+export interface ActivitySession {
+  id: string
+  parentID?: string
+  agentID?: AgentID
+  title?: string
+  createdAt: number
+  updatedAt: number
+  outcome?: "succeeded" | "failed" | "interrupted"
+}
+
+/** A session-parent relationship observed directly in OpenCode's session inventory. */
+export interface ObservedChildSession {
+  parentSessionID: string
+  childSessionID: string
+  sourceAgentID: AgentID
+  targetAgentID: AgentID
+}
+
+export interface ActivitySnapshot {
+  view: "runtime-api"
+  generatedAt: string
+  sessions: readonly ActivitySession[]
+  /** Only includes children whose parent session is present in this snapshot. */
+  observedChildSessions: readonly ObservedChildSession[]
+}
+
 export interface GraphConstraint {
   type: "target-mode" | "runtime-depth"
   summary: string

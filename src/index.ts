@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin"
+import { ActivityService } from "./activity.js"
 import { analyzeCommunicationGraph } from "./graph.js"
 import { exportMermaidGraph, normalizeTopologyFilters } from "./export.js"
 import { AgentInventoryService } from "./inventory.js"
@@ -10,6 +11,7 @@ export default Plugin.define({
   id: "argchart",
   async setup(ctx) {
     const inventory = new AgentInventoryService(ctx.agent)
+    const activity = new ActivityService(ctx.session, ctx.location.directory)
     const fileScope = new FileScopeService(ctx.location.directory)
 
     await ctx.rpc.register(ArgChartRPC, {
@@ -18,6 +20,7 @@ export default Plugin.define({
         fileScope.clearCache()
         return analyzeCommunicationGraph(await inventory.refresh())
       },
+      "activity.refresh": () => activity.snapshot(),
       "permission.evaluate": async (input) => {
         const request = input as { agentID: string; action: string; resource: string }
         const agent = (await inventory.refresh()).nodes.find((node) => node.id === request.agentID)
@@ -42,6 +45,9 @@ export default Plugin.define({
 
 export type {
   AgentID,
+  ActivitySession,
+  ActivitySnapshot,
+  ObservedChildSession,
   AgentInventory,
   AgentMode,
   AgentModel,

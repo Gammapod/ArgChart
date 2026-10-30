@@ -60,8 +60,19 @@ npm test
 | EXPORT-1 | Mermaid output contains the virtual User node and retains requested decision labels. | `test/mermaid.test.ts` — Mermaid-content test |
 | EXPORT-2 | An existing Mermaid file is not overwritten unless explicitly requested. | `test/mermaid.test.ts` — explicit-overwrite test |
 
+## Runtime activity invariants
+
+| ID | Invariant | Evidence |
+| --- | --- | --- |
+| ACT-1 | Activity recovery projects only safe recent-session fields and uses the explicit recent-session boundary. | `test/activity.test.ts` — `activity snapshot retains safe current and recent session fields` |
+| ACT-2 | An observed child relationship requires a known parent plus parent and child agent identities. | `test/activity.test.ts` — `observed child sessions require both parent and child agent identities` |
+| ACT-3 | Agent and relationship status prefer an active session over a newer inactive session, then use updated time. | `test/activity.test.ts` — `latest status sessions prefer active sessions then updated time` |
+| ACT-4 | Child attribution uses the current parent-session agent. | `test/activity.test.ts` — `delegating agent comes from the observed parent session` |
+| ACT-5 | The current-session preview exposes the newest prompt and a subsequent assistant text response, excluding reasoning and tool content. | `test/session-preview.test.ts` — preview selection tests |
+
 ## Boundaries and future tests
 
 - Live OpenCode policy enforcement, session approvals, depth limits, and launch outcomes require integration tests against real sessions; they are intentionally outside the current read-only unit suite.
-- M4 should add source-discovery, parsing, provenance, ambiguity, and non-destructive inspection invariants before source editing is considered.
+- Source discovery, parsing, provenance, ambiguity, and non-destructive inspection need dedicated invariants before source convenience work is considered.
+- Runtime permission status is a best-effort live overlay: an unavailable permission sync is shown as unknown rather than inferred as no pending request.
 - A future renderer should test its own navigation and focus behavior against the shared selection and topology invariants rather than duplicating permission tests.

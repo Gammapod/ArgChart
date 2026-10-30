@@ -9,6 +9,7 @@ export default Plugin.define({
   setup(context) {
     const inventory = context.client.rpc(ArgChartRPC)
     const [topologyFilters, updateTopologyFilters] = context.storage.memory("topology-filters", { initial: defaultTopologyFilters })
+    const [followRunningAgents, updateFollowRunningAgents] = context.storage.memory("follow-running-agents", { initial: { enabled: true } })
     const unregisterRoute = context.ui.router.register({
       name: "argchart",
       render: () => <ArgChartViewer />,
@@ -59,6 +60,13 @@ export default Plugin.define({
             }
             context.ui.toast.show({ message: `Mermaid graph exported to ${result.outputPath}`, variant: "success" })
           },
+        },
+        {
+          id: "argchart.toggle-follow-running-agents",
+          title: "Toggle following running ArgChart agents",
+          group: "ArgChart",
+          palette: true,
+          run: () => updateFollowRunningAgents((setting) => { setting.enabled = !setting.enabled }),
         },
         {
           id: "argchart.toggle-subagents",

@@ -70,7 +70,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 ## Milestones
 
-**Status at the M3.5 checkpoint:** M0 through M3, plus M3.5 architecture/test cleanup, are complete and manually smoke-tested. The next milestone is the read-only capability-scope foundation.
+**Status at the M9 checkpoint:** M0 through M5 are complete. M9 currently provides recent-session recovery, live active/approval status, observed child-session relationships, session navigation, and a safe current-session prompt/response preview. Durable event history, fork classification, and file/tool activity remain deferred.
 
 ### M0: Plugin Skeleton and Research Contract
 
@@ -230,7 +230,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 
 **References:** [Agent file formats](https://opencode.ai/v2/docs/agents/#formats), [configuration locations and merging](https://opencode.ai/v2/docs/config/#locations).
 
-### M9: Runtime Session Activity Overlay (Deferred)
+### M9: Runtime Session Activity Overlay (Partially implemented)
 
 **Outcome:** an optional, read-only runtime overlay that shows actual child-session activity on top of the static communication graph.
 
