@@ -10,9 +10,11 @@ status: proposed
 
 ## Review context
 
-ArgChart is a terminal-first, read-only inspector for effective OpenCode agent configuration. Its current viewer presents an agent navigator, selected-agent file scope, optional relationship details, and a selected-agent local topology. The product direction calls for a selected-agent dashboard in the terminal and a future companion web viewer with whole-topology exploration.
+ArgChart is a terminal-first, read-only inspector for effective OpenCode agent configuration. Its current viewer presents an agent navigator, a selected-agent relationship table, safe context metadata, and a lazy selected-agent file scope. The product direction calls for a selected-agent dashboard in the terminal and a future companion web viewer with whole-topology exploration.
 
 These recommendations preserve the existing distinction between effective configured capability and observed runtime activity. They are product and interaction recommendations; they do not change the permission-analysis semantics.
+
+> **Implementation note:** the terminal implementation deliberately diverged from the recommended local hub-and-spoke graph after real-project testing exposed label overlap and low information density. It now uses a scrollable Relationships table with independent **Calls Me** and **I Can Call** decisions. This does not change the web-viewer direction: a whole-topology graph remains the intended browser-specific renderer.
 
 ## Recommended terminal layout
 
@@ -25,6 +27,8 @@ Users see a coherent selected-agent dashboard rather than a fixed set of competi
 - a compact tool-scope summary;
 - selected-agent identity and contextual details, with room for instructions when deliberately enabled.
 
+The current terminal arrangement places Relationships and safe Context above File Scope and Tools; File Scope receives the remaining vertical space.
+
 On smaller terminals, panels retain their identity but collapse into keyboard-focusable or tabbed regions instead of becoming unreadably narrow.
 
 ### Recommendation and reasoning
@@ -33,12 +37,12 @@ Move local topology above file scope in the main dashboard. Topology is immediat
 
 Avoid a permanent equal-size grid. A full codebase cannot fit in a fixed-size scope panel, and the useful density of topology, file scope, tool scope, and prose varies by the selected agent and terminal size. Let the focused panel expand when a user needs depth, while retaining summary information from the other panels.
 
-### Existing implementation details
+### Historical implementation details (superseded)
 
 - `src/viewer.tsx` renders the navigator and file-scope panel in a fixed `height="25%"` top row, then renders optional details and a flex-growing topology panel below. This gives local topology much of the terminal even when it contains few neighbors.
 - `src/tui/agent-navigator.tsx` already provides a fixed-width (`width={34}`), independently scrolling agent navigator and is a suitable stable dashboard rail.
 - `src/tui.tsx` and `src/viewer.tsx` already persist viewer and topology-filter state in terminal memory storage. Panel focus, collapse, or layout preferences can use the same pattern.
-- `src/tui/details-panel.tsx` is currently a relationship explanation list located between the top row and topology. It should evolve into a compact selected-agent context panel rather than force unrelated panels to reflow.
+- The retired relationship-details strip sat between the top row and topology; context is now a dedicated dashboard panel.
 
 ## File-scope scalability
 
@@ -50,9 +54,11 @@ Users can inspect a large repository without overlap, excessive load time, or a 
 
 Make file scope a real, lazy tree explorer before investing in more visual polish. Load one directory at a time; collapse directories by default; cache results by selected agent and directory; expose loading and error states at the directory level. Keep an agent-perspective default that suppresses denied content, with a diagnostic mode that can reveal denied and approval-required paths and their explanations.
 
+The selected structure should support a keyboard **show more info** drill-in. Its initial contents are the effective read/edit decisions, matching and ordered rules, and concise diagnostics such as nested exceptions or unusual edit-without-read states. The drill-in is intentionally extensible for later cross-capability warnings, such as indirect file-read paths through unrestricted tools.
+
 Scrolling is necessary but insufficient. The current flattened projection still requires the service to traverse the workspace before rendering, so it will not scale to realistic codebases. Directory-level loading bounds both rendering and filesystem work.
 
-### Existing implementation details
+### Historical implementation details (superseded)
 
 - `src/file-scope.ts` documents `FileScopeService` as a lazy projection, but `list()` calls `readTree()` recursively for every descendant before it projects the result. This is eager full-workspace traversal.
 - `FileScopeService.readTree()` ignores `.git` and `node_modules`, but other large trees can still be traversed eagerly.
@@ -94,11 +100,15 @@ Evolve the terminal rendering into a deterministic hub-and-spoke or constellatio
 
 This makes the terminal presentation more graph-like while preserving predictable readability, accessibility, and the existing effective-permission explanation model. It also avoids coupling the future web viewer to terminal grid constraints.
 
+### Current terminal decision
+
+The terminal no longer renders a local graph. It uses the Relationships table described above because it remains readable under dense inbound, outbound, and two-way connectivity. The graph recommendation remains applicable to the future web viewer, where an entire topology can be explored with browser-appropriate layout and interaction.
+
 ### Existing implementation details
 
-- `src/tui/topology-panel.tsx` currently renders deterministic inbound, selected, and outbound columns.
-- `src/topology.ts` provides `layoutLocalTopology()`, which correctly assigns each neighbor once and preserves independent decisions for two-way relationships.
-- `docs/architecture.md` records the deliberate three-column local layout and the decision to display allow and ask relationships while keeping denied-edge diagnostics elsewhere.
+- `src/tui/relationships-panel.tsx` renders one scrollable row per visible connected agent, pinned with User first.
+- `src/topology.ts` provides `listLocalRelationships()`, which preserves independent inbound and outbound decisions for each row.
+- `docs/architecture.md` records the terminal-table decision and retains whole-topology graph exploration for the web viewer.
 - `TopologyFilters` already support subagent, ask-edge, and denied-edge visibility and should retain identical semantics in later renderers.
 
 ## Details, tools, and instructions
@@ -120,7 +130,7 @@ Showing raw prose instructions requires a deliberate security and provenance dec
 
 ### Existing implementation details
 
-- `src/tui/details-panel.tsx` currently lists every relationship explanation and target constraints. It is a useful source for a focused explanation drill-in but is not yet a general agent context panel.
+- The relationship-details strip was retired in favor of the Relationships table and an extensible file-scope diagnostic drill-in.
 - `GraphNode` in `src/domain.ts` exposes identity, description, mode, model, hidden state, and permissions, but deliberately does not include raw runtime instruction content.
 - `docs/architecture.md` records that unrestricted raw runtime payloads and system instructions are intentionally excluded from normal graph responses.
 - M6 in `docs/milestone_plan.md` defines the planned tool-scope explorer and its action-specific permission projections.

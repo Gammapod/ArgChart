@@ -170,6 +170,7 @@ Do not model a separate "respond" permission edge in the MVP. A launched subagen
 - Represent `allow`, `ask`, and `deny` independently for each applicable action.
 - Provide an agent-perspective mode that hides denied paths and collapses accessible directories as far as possible; label hidden paths as absent **or** denied.
 - Provide a diagnostic mode that shows denied and approval-required paths with their explanations.
+- Add a keyboard **show more info** drill-in for the focused tree row. Start with effective read/edit decisions, ordered matching rules, and structure-specific diagnostics; leave room for later cross-capability warnings and analyses.
 - Keep `glob` and `grep` out of access-state tree styling; present them as query capabilities linked to the same scope view.
 - Cache evaluations, avoid eager full-workspace evaluation, and distinguish existing paths from possible future paths matched by wildcards.
 

@@ -1,16 +1,16 @@
 ---
 type: Architecture decision record
-title: ArgChart architecture through M3.5
-description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime graph, terminal viewer, and M3.5 cleanup.
+title: ArgChart architecture through M5
+description: Recorded decisions and verified behavior for ArgChart's read-only effective-runtime inspector, relationships dashboard, and file-scope explorer.
 tags: [architecture, decisions, opencode, permissions, terminal-ui]
 status: active
 ---
 
-# ArgChart architecture through M3.5
+# ArgChart architecture through M5
 
 ## Current capability boundary
 
-ArgChart is a read-only, effective-runtime inspector. It inventories the agents resolved by OpenCode for the active location, evaluates their effective `subagent` permissions, and presents the resulting communication relationships in an OpenTUI route.
+ArgChart is a read-only, effective-runtime inspector. It inventories the agents resolved by OpenCode for the active location, evaluates their effective permissions prospectively, and presents selected-agent relationships plus read/edit file scope in an OpenTUI dashboard.
 
 It does not yet inspect or attribute a configuration source file. A custom Markdown agent observed in the effective runtime registry is evidence that OpenCode resolved it, not evidence that ArgChart has parsed its Markdown. JSON/JSONC and other custom-agent source formats have not yet been manually validated as inventory inputs.
 
@@ -60,23 +60,23 @@ Agents in `primary` mode do not receive incoming callable graph edges. Instead, 
 
 **Consequence:** an omitted edge is not silently treated as a permission denial.
 
-### Use a focused terminal relationship view, not an all-at-once diagram
+### Use a selected-agent dashboard with a relationship table, not a terminal graph
 
-The M3 route presents an agent list, the selected agent's inbound and outbound directed relationships, and explanations below. Keyboard interaction uses `j`/`k` for selection and `r` to refresh. Permission decisions use symbols and semantic status colors, with text labels and explanations so color is not the sole signal.
+The terminal route presents a stable agent rail, a scrollable relationship table, safe identity/context metadata, a lazy file-scope explorer, and a placeholder tool-scope panel. The relationship table presents each connected agent once with independent **Calls Me** and **I Can Call** decisions. Keyboard focus supports agents, relationships, and file scope; `j`/`k` moves within the focused panel and `r` refreshes.
 
-**Consequence:** the current UI remains legible for modest teams and establishes a scalable interaction model; a separate command provides a full exported snapshot.
+**Consequence:** terminal users can inspect dense relationship sets without overlapping node labels. Whole-topology graph exploration remains a web-viewer concern; Mermaid remains an explicit snapshot export.
 
-### Model user selection as a virtual topology node
+### Model User selection and questions as virtual relationships
 
-The effective runtime registry does not contain a user agent. For topology and export only, ArgChart derives a virtual **User** node. It has `User → agent` edges for `primary` and `all` agents, reflecting agents selectable directly by the user. It has no edge to `subagent`-only agents. Runtime `agent → agent` edges continue to represent evaluated `subagent` permissions.
+The effective runtime registry does not contain a user agent. For relationship, topology, and export projections, ArgChart derives a virtual **User** node. It has `User → agent` edges for `primary` and `all` agents, reflecting agents selectable directly by the user. It has no edge to `subagent`-only agents. Each agent also receives an `agent → User` relationship from its effective `question:*` permission, representing whether it can ask the user a question. Runtime `agent → agent` edges continue to represent evaluated `subagent` permissions.
 
 **Consequence:** direct user selection is visible without misrepresenting it as an OpenCode permission rule.
 
-### Show only possible local relationships in the topology panel
+### Keep relationship filtering shared with export
 
-The selected-agent topology panel renders directly connected `allow` edges as solid green links and `ask` edges as dashed amber links. It omits `deny` edges. The detailed inspector remains the debugging surface for denied relationships and their final rules.
+Topology filters control the selected-agent relationship table and Mermaid export. Defaults hide subagent-only nodes and denied relationships while retaining approval-required relationships. The table uses text labels and semantic status colors for `allow`, `ask`, and `deny`.
 
-**Consequence:** the concise visual topology answers “who can communicate?” while retaining a route to the full rule-level explanation.
+**Consequence:** filtering keeps dense relationship lists scannable without changing the underlying communication or question-permission semantics.
 
 ### Export complete topology as Mermaid
 
@@ -84,26 +84,28 @@ The **Export ArgChart Mermaid graph** command writes `argchart.mmd` in the activ
 
 **Consequence:** export is an explicit user action and a snapshot, not a live-synchronized artifact.
 
-### Apply shared topology filters to the viewer and export
+### Project file scope as a directory-lazy tree
 
-Topology filtering is shared between the local terminal topology and Mermaid export. Defaults hide `subagent`-only nodes (and every connected edge), show `ask` edges, and hide `deny` edges. The viewer exposes `s`, `a`, and `d` shortcuts and palette commands for these settings; Mermaid export snapshots the active settings.
+File scope loads only one directory at a time and caches results by effective agent, directory path, and permission set. The viewer composes loaded directory responses into an expandable tree, keeps denied directories visible when they can contain more-specific exceptions, and hides fully denied files in the default agent-perspective view. Read and edit decisions remain independent; a `*` marks a heuristic nested exception for that action.
 
-**Consequence:** the concise graph is useful by default, while debugging or complete-export views remain opt-in.
+**Consequence:** file-scope work and rendering remain bounded on large workspaces while users can reach nested overrides. The nested-exception heuristic is explicitly conditional work under M10.
 
-### Use deterministic three-column placement for the local graph
+### Expose safe agent context; defer raw instructions
 
-The local topology assigns each visible neighboring node exactly once relative to the selected agent. Inbound-only nodes, including the virtual User node, appear on the left. Outbound-only and bidirectional nodes appear on the right. A right-column node receives both directional arrow segments when it can prompt the selected agent and the selected agent can prompt it; each segment retains its own `allow`/`ask`/`deny` styling.
+The context panel displays identity, mode, model, hidden state, and description. It deliberately does not expose raw runtime instructions. Tools likewise have a dedicated dashboard region but await the action-specific M6 projection.
 
-**Consequence:** the terminal view conveys possible return prompts without duplicating an agent across columns or requiring a general-purpose graph layout engine.
+**Consequence:** context remains safe by default, while instruction disclosure and tool capability rendering remain deliberate future product decisions.
 
 ## Verified behavior
 
-Manual checks through M3 confirmed that the viewer:
+Manual checks through M5 confirmed that the viewer:
 
 - lists OpenCode built-in agents and a custom Markdown-defined test agent in the effective runtime inventory;
 - updates inventory and communication-edge counts after an agent is added or removed;
-- shows allowed and denied subagent relationships and their final matching effective rules;
-- retains each normalized agent's effective permission rules for analysis, though file-permission visualization is not a supported M3 view.
+- presents one relationship row per visible connected agent, including independent user-selection and `question:*` decisions;
+- loads file scope by directory, expands/collapses the visible tree, and retains selection while scrolling;
+- distinguishes read and edit decisions, including nested exceptions and virtual rule-derived paths;
+- retains each normalized agent's effective permission rules for action-specific analysis without exposing raw instruction payloads.
 
 ## Deferred questions
 

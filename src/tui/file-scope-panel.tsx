@@ -20,7 +20,7 @@ export function FileScopePanel(props: {
     <scrollbox ref={(value) => { scrollbox = value }} contentOptions={{ flexDirection: "column" }} height="100%" flexGrow={1} borderStyle="single" borderColor={context.theme.border.base} padding={1}>
       <text fg={props.focused ? context.theme.text.action.primary.base : context.theme.text.base}>FILE SCOPE · {props.scope.agentID} · /{props.scope.path || ""}</text>
       <box flexDirection="row">
-        <text fg={context.theme.text.muted}>f focus · j/k select · enter toggle · x exceptions · c collapse · * nested exception</text>
+        <text fg={context.theme.text.muted}>f focus · j/k select · enter toggle · i info · x exceptions · c collapse · * nested exception</text>
       </box>
       <box flexDirection="row">
         <text width={42} fg={context.theme.text.muted}>NAME</text>

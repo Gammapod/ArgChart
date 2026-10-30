@@ -10,6 +10,7 @@ import { FileScopePanel } from "./tui/file-scope-panel.js"
 import { buildFileScopeTree, clampFileScopeSelection } from "./tui/file-scope-tree.js"
 import { AgentContextPanel } from "./tui/agent-context-panel.js"
 import { ToolsPanel } from "./tui/tools-panel.js"
+import { editIsMorePermissive, formatMatchingRule } from "./tui/file-scope-details.js"
 
 export function ArgChartViewer() {
   const context = usePlugin()
@@ -177,6 +178,31 @@ export function ArgChartViewer() {
     if (!entry.expanded) void loadFileScopeDirectory(selected()!.id, entry.entry.path)
   }
 
+  const showFocusedFileScopeInfo = async () => {
+    const agent = selected()
+    const treeEntry = visibleFileEntries()[fileScopeEntryIndex()]
+    if (!agent || !treeEntry) {
+      context.ui.toast.show({ message: "Focus File Scope and select a structure first.", variant: "warning" })
+      return
+    }
+    const entry = treeEntry.entry
+    const unusualEditAccess = editIsMorePermissive(entry.read, entry.edit)
+    await context.ui.dialog.alert({
+      title: `File scope · /${entry.path}`,
+      message: [
+        `Agent: ${agent.name} (${agent.id})`,
+        `Structure: /${entry.path} · ${entry.kind}${entry.exists ? "" : " · possible future path"}`,
+        "",
+        `Read: ${entry.read.decision}`,
+        formatMatchingRule(entry.read),
+        "",
+        `Edit: ${entry.edit.decision}`,
+        formatMatchingRule(entry.edit),
+        ...(unusualEditAccess ? ["", "Alert: Edit access is more permissive than read access."] : []),
+      ].join("\n"),
+    })
+  }
+
   context.keymap.layer(() => ({
     commands: [
       { id: "argchart.viewer.next", title: "Next item in active ArgChart panel", bind: "j", run: () => activePanel() === "agents" ? moveSelection(1) : activePanel() === "file-scope" ? moveFileScopeSelection(1) : moveRelationshipSelection(1) },
@@ -189,6 +215,7 @@ export function ArgChartViewer() {
       { id: "argchart.viewer.focus-file-scope", title: "Focus ArgChart file scope", bind: "f", run: () => setActivePanel("file-scope") },
       { id: "argchart.viewer.focus-relationships", title: "Focus ArgChart relationships", bind: "l", run: () => setActivePanel("relationships") },
       { id: "argchart.viewer.file-scope-toggle", title: "Expand or collapse selected file-scope directory", bind: "enter", run: toggleFocusedFileScopeDirectory },
+      { id: "argchart.viewer.file-scope-info", title: "Show selected file-scope details", bind: "i", run: showFocusedFileScopeInfo },
       { id: "argchart.viewer.file-scope-expand-exceptions", title: "Expand file-scope directories with nested exceptions", bind: "x", run: expandExceptionFileScopeDirectories },
       { id: "argchart.viewer.file-scope-collapse-all", title: "Collapse all file-scope directories", bind: "c", run: collapseAllFileScopeDirectories },
     ],
